@@ -24,7 +24,8 @@
   .thumb{background-size:cover;background-color:#222}
   .t-sumpf{background-image:url(thumb-sumpfgans.jpg);background-position:center}
   .t-dungeon{background-image:url(thumb-dungeon-crawler.jpg);background-position:center}
-  .t-jjk{background:linear-gradient(160deg,#1a1050,#8a2a60)}
+  .t-secret{background:linear-gradient(160deg,#1a1050,#8a2a60)}
+  .card[hidden]{display:none}
   .t-retro{background-image:url(thumb-retro-city4.jpg);background-position:right center}
   @media(max-width:600px){header{padding:16px 18px}main{padding:18px}.grid{gap:16px}}
 </style>
@@ -45,11 +46,26 @@
       <div class="thumb t-dungeon"></div>
       <div class="meta"><strong>Dungeon Crawler</strong><em>Abenteuer</em></div>
     </a>
-    <a class="card" href="jjk.html">
-      <div class="thumb t-jjk"></div>
-      <div class="meta"><strong>JJK – Jujutsu-Kampf</strong><em>Kampf</em></div>
+    <a class="card secret" id="secret" href="kampfgeist.html" hidden>
+      <div class="thumb t-secret"></div>
+      <div class="meta"><strong>Kampfgeist</strong><em>Kampf</em></div>
     </a>
   </div>
 </main>
+<script>
+// Geheimes Spiel: dreimal schnell auf "Spielwiese" tippen, dann erscheint die Kachel
+(function () {
+  var card = document.getElementById('secret'), h = document.querySelector('header h1'), taps = [];
+  try { if (localStorage.getItem('sw_secret') === '1') card.hidden = false; } catch (e) {}
+  h.style.cursor = 'default'; h.style.userSelect = 'none'; h.style.webkitUserSelect = 'none';
+  h.addEventListener('click', function () {
+    var now = Date.now(); taps = taps.filter(function (t) { return now - t < 1500; }); taps.push(now);
+    if (taps.length >= 3) {
+      taps = []; card.hidden = !card.hidden;
+      try { localStorage.setItem('sw_secret', card.hidden ? '0' : '1'); } catch (e) {}
+    }
+  });
+})();
+</script>
 </body>
 </html>
