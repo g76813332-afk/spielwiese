@@ -21,16 +21,11 @@
   .meta{display:flex;justify-content:space-between;padding:10px 2px 0;font-size:14px}
   .meta em{font-style:normal;color:var(--mut)}
   .meta strong{font-weight:600}
-  /* Kachel-Hintergründe: einfache Flächen, kein Verlauf */
-  .t-sumpf{background:#c47a1e}
-  .t-sumpf::before{content:"";position:absolute;left:0;right:0;bottom:0;height:34%;background:#5a6b2a}
-  .t-sumpf::after{content:"";position:absolute;right:18px;top:16px;width:46px;height:46px;border-radius:50%;background:#f4dc8a}
-  .t-retro{background:#1b1f3a;font-family:"Courier New",monospace}
-  .t-retro::before{content:"";position:absolute;inset:0;background:
-     linear-gradient(#0000 0 70%,#ff4f8b 70% 72%,#0000 72%),
-     repeating-linear-gradient(90deg,#0000 0 22px,rgba(255,255,255,.06) 22px 24px)}
-  .t-retro b{letter-spacing:2px;text-transform:uppercase;position:relative}
-  .t-sumpf b{position:relative}
+  .thumb{background-size:cover;background-color:#222}
+  .t-sumpf{background-image:url(thumb-sumpfgans.jpg);background-position:center}
+  .t-dungeon{background-image:url(thumb-dungeon-crawler.jpg);background-position:center}
+  .t-jjk{background:linear-gradient(160deg,#1a1050,#8a2a60)}
+  .t-retro{background-image:url(thumb-retro-city4.jpg);background-position:right center}
   @media(max-width:600px){header{padding:16px 18px}main{padding:18px}.grid{gap:16px}}
 </style>
 </head>
@@ -39,12 +34,20 @@
 <main>
   <div class="grid">
     <a class="card" href="sumpfgans.html">
-      <div class="thumb t-sumpf"><b>Sumpfgans</b></div>
+      <div class="thumb t-sumpf"></div>
       <div class="meta"><strong>Sumpfgans</strong><em>Shooter</em></div>
     </a>
     <a class="card" href="retro-city4.html">
-      <div class="thumb t-retro"><b>Retro City 4</b></div>
+      <div class="thumb t-retro"></div>
       <div class="meta"><strong>Retro City 4</strong><em>Action</em></div>
+    </a>
+    <a class="card" href="dungeon-crawler.html">
+      <div class="thumb t-dungeon"></div>
+      <div class="meta"><strong>Dungeon Crawler</strong><em>Abenteuer</em></div>
+    </a>
+    <a class="card" href="jjk.html">
+      <div class="thumb t-jjk"></div>
+      <div class="meta"><strong>JJK – Jujutsu-Kampf</strong><em>Kampf</em></div>
     </a>
   </div>
 </main>
