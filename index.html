@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Spielwiese – HTML5-Spiele</title>
+<style>
+  :root{--bg:#15122b;--side:#1d1840;--card:#251f52;--acc:#7c5cff;--acc2:#ff5c9e;--txt:#f2efff;--mut:#a79fd6}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--txt);font-family:"Segoe UI",system-ui,-apple-system,Arial,sans-serif}
+  header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:14px;padding:12px 20px;background:rgba(21,18,43,.92);backdrop-filter:blur(10px);border-bottom:1px solid #2f2868}
+  .logo{font-weight:900;font-size:24px;letter-spacing:.5px;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent;white-space:nowrap}
+  .search{flex:1;max-width:520px;margin-left:auto;margin-right:auto}
+  .search input{width:100%;padding:11px 18px;border-radius:999px;border:2px solid #34297a;background:#1d1840;color:var(--txt);font-size:16px;outline:none}
+  .search input:focus{border-color:var(--acc)}
+  .layout{display:flex}
+  nav{width:200px;flex:none;padding:18px 12px;background:var(--side);min-height:calc(100vh - 62px);position:sticky;top:62px;align-self:flex-start}
+  nav button{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;margin-bottom:6px;border:0;border-radius:12px;background:transparent;color:var(--mut);font-size:16px;font-weight:600;cursor:pointer;text-align:left}
+  nav button:hover{background:#2b2465;color:var(--txt)}
+  nav button.on{background:linear-gradient(90deg,var(--acc),#5a3de0);color:#fff}
+  main{flex:1;padding:22px;min-width:0}
+  h2{margin:4px 0 16px;font-size:22px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px}
+  .grid .big{grid-column:span 2;grid-row:span 2}
+  .card{position:relative;display:block;aspect-ratio:1/1;border-radius:18px;overflow:hidden;background:var(--card);border:0;padding:0;cursor:pointer;color:inherit;text-decoration:none;
+        transition:transform .18s,box-shadow .18s;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  .card:hover,.card:focus-visible{transform:translateY(-5px) scale(1.03);box-shadow:0 12px 28px rgba(124,92,255,.5);outline:none}
+  .card .art{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:clamp(54px,9vw,96px)}
+  .big .art{font-size:clamp(110px,16vw,190px)}
+  .card .ov{position:absolute;left:0;right:0;bottom:0;padding:34px 12px 11px;background:linear-gradient(transparent,rgba(10,8,30,.92));text-align:left}
+  .card .nm{font-weight:800;font-size:16px}
+  .card .sub{font-size:12px;color:var(--mut)}
+  .tag{position:absolute;top:10px;left:10px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800;background:var(--acc2);color:#fff}
+  .tag.soon{background:#3b3380;color:#cfc8ff}
+  .card.soon{filter:saturate(.55);cursor:default}
+  .card.soon:hover{transform:none;box-shadow:0 4px 14px rgba(0,0,0,.35)}
+  .play{position:absolute;right:10px;top:10px;width:38px;height:38px;border-radius:50%;background:#fff;color:#4b2fd0;display:flex;align-items:center;justify-content:center;font-size:16px;opacity:0;transition:opacity .15s}
+  .card:hover .play,.card:focus-visible .play{opacity:1}
+  .empty{display:none;color:var(--mut);padding:30px 0}
+  @media(max-width:760px){
+    nav{position:fixed;bottom:0;left:0;right:0;top:auto;width:auto;min-height:0;display:flex;overflow-x:auto;gap:6px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));z-index:6;border-top:1px solid #2f2868}
+    nav button{width:auto;white-space:nowrap;margin:0;padding:10px 14px}
+    main{padding:14px 14px 90px}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+    .logo{font-size:20px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🎮 SPIELWIESE</div>
+  <div class="search"><input id="q" type="search" placeholder="Spiel suchen …" autocomplete="off"></div>
+</header>
+<div class="layout">
+  <nav id="nav"></nav>
+  <main>
+    <h2 id="title">Alle Spiele</h2>
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty">Nichts gefunden 🦆</div>
+  </main>
+</div>
+
+<script>
+/* ===== HIER Spiele eintragen =====
+   file: Dateiname deines HTML5-Spiels (im selben Ordner)
+   soon: true = grau, "Bald"                                           */
+const GAMES = [
+  { name:'Sumpfgans',      sub:'Moorjagd-Shooter',  cat:'Shooter',    icon:'🦆', bg:['#d98c2b','#7a4a14'], file:'sumpfgans.html', big:true, tag:'NEU' },
+  { name:'Burg-Sturm',     sub:'Bald verfügbar',    cat:'Action',     icon:'🏰', bg:['#6a7bd9','#2a2f6e'], soon:true },
+  { name:'Winter-Rennen',  sub:'Bald verfügbar',    cat:'Rennen',     icon:'🛷', bg:['#6fd0e8','#2a6a8a'], soon:true },
+  { name:'Monster-Memory', sub:'Bald verfügbar',    cat:'Puzzle',     icon:'👾', bg:['#b86be0','#4b2a7a'], soon:true },
+  { name:'Block-Jump',     sub:'Bald verfügbar',    cat:'Geschick',   icon:'🟩', bg:['#5fd98a','#1f6a3c'], soon:true },
+  { name:'Schatzinsel',    sub:'Bald verfügbar',    cat:'Abenteuer',  icon:'🏝️', bg:['#f0c84a','#a8601c'], soon:true },
+  { name:'Raketen-Mission',sub:'Bald verfügbar',    cat:'Action',     icon:'🚀', bg:['#ff6a7a','#7a1f3a'], soon:true },
+  { name:'Zahlen-Zauber',  sub:'Bald verfügbar',    cat:'Puzzle',     icon:'🧮', bg:['#4ac8d9','#1f4a7a'], soon:true },
+  { name:'Piraten-Pong',   sub:'Bald verfügbar',    cat:'Geschick',   icon:'🏴‍☠️', bg:['#8a8f9c','#2a2f3a'], soon:true },
+];
+const CATS = [['Alle','🏠'],['Shooter','🎯'],['Action','💥'],['Rennen','🏁'],['Puzzle','🧩'],['Geschick','🕹️'],['Abenteuer','🗺️']];
+let cat = 'Alle', q = '';
+const nav = document.getElementById('nav'), grid = document.getElementById('grid');
+
+function renderNav() {
+  nav.innerHTML = '';
+  for (const [c, i] of CATS) {
+    const b = document.createElement('button');
+    b.textContent = i + ' ' + c; if (c === cat) b.className = 'on';
+    b.onclick = () => { cat = c; renderNav(); render(); };
+    nav.appendChild(b);
+  }
+}
+function render() {
+  document.getElementById('title').textContent = cat === 'Alle' ? 'Alle Spiele' : cat;
+  grid.innerHTML = '';
+  const list = GAMES.filter(g => (cat === 'Alle' || g.cat === cat) && g.name.toLowerCase().includes(q));
+  document.getElementById('empty').style.display = list.length ? 'none' : 'block';
+  for (const g of list) {
+    const el = document.createElement(g.soon ? 'div' : 'a');
+    el.className = 'card' + (g.big ? ' big' : '') + (g.soon ? ' soon' : '');
+    if (!g.soon) el.href = g.file;
+    el.style.background = `radial-gradient(circle at 30% 20%, ${g.bg[0]}, ${g.bg[1]})`;
+    el.innerHTML = `<div class="art">${g.icon}</div>` +
+      (g.soon ? '<span class="tag soon">BALD</span>' : g.tag ? `<span class="tag">${g.tag}</span>` : '') +
+      (g.soon ? '' : '<span class="play">▶</span>') +
+      `<div class="ov"><div class="nm">${g.name}</div><div class="sub">${g.sub}</div></div>`;
+    grid.appendChild(el);
+  }
+}
+document.getElementById('q').addEventListener('input', e => { q = e.target.value.trim().toLowerCase(); render(); });
+renderNav(); render();
+</script>
+</body>
+</html>
