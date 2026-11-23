@@ -398,6 +398,26 @@ const CT = [
   { n: 'Motorrad', c: '#1b1b1b', max: 430, acc: 520, grip: 3.6, st: 3.6, m: .4, l: 26, w: 12, sh: 'bike', price: 1200, hp: 60 },
   { n: 'Supersportler', c: '#8a2be2', max: 580, acc: 640, grip: 4.4, st: 3.0, m: .9, l: 44, w: 22, sh: 'sport', price: 18000, rare: 1 }
 ];
+const CAT0 = { Taxi: 'Limousinen', Sportwagen: 'Sport', Lieferwagen: 'Nutzfahrzeuge', Kombi: 'Kleinwagen', Limousine: 'Luxus', Buggy: 'Gelände', Pickup: 'Gelände', Geländewagen: 'Gelände', 'Muscle Car': 'Muscle', Bus: 'Nutzfahrzeuge', Müllwagen: 'Nutzfahrzeuge', Krankenwagen: 'Nutzfahrzeuge', Motorrad: 'Motorräder', Supersportler: 'Sport' };
+const CATS = ['Kleinwagen', 'Limousinen', 'Sport', 'Muscle', 'Gelände', 'Nutzfahrzeuge', 'Motorräder', 'Luxus'];
+CT.forEach(t => t.cat = CAT0[t.n]);
+(function () {                                    // 104 weitere Modelle: je Kategorie von billig/langsam bis teuer/schnell
+  const COL = ['#e04040', '#3a7bd5', '#58b84b', '#f2c200', '#9b59b6', '#e8e8e8', '#1a1a1a', '#ff7a00', '#2aa8a8', '#8a8f96', '#c0392b', '#7a4a2a', '#ff5fa8', '#2c5a8a'];
+  const FAM = [
+    ['Kleinwagen', [3], { l: 36, w: 19 }, ['Pixel', 'Kiwi', 'Murmel', 'Zwerg', 'Flitzer', 'Spatz', 'Knirps', 'Käfer', 'Hüpfer', 'Mäuschen', 'Brummi', 'Nuss', 'Funke', 'Tupfer'], .72, 1.02, 300, 1500],
+    ['Limousinen', [3], { l: 47, w: 22 }, ['Bürger', 'Komet', 'Merkur', 'Atlas', 'Pegasus', 'Orion', 'Vesta', 'Saturn', 'Nova', 'Titan', 'Corona', 'Palma', 'Aurora', 'Zenit'], .92, 1.15, 700, 4500],
+    ['Sport', [1], {}, ['Blitz', 'Falke', 'Gepard', 'Puma', 'Cobra', 'Luchs', 'Adler', 'Orkan', 'Sturm', 'Komet S', 'Rakete', 'Phantom', 'Zephyr', 'Donner'], .88, 1.2, 3000, 24000],
+    ['Muscle', [8], {}, ['Brawler', 'Bulle', 'Hammer', 'Walze', 'Rammbock', 'Büffel', 'Dampf', 'Keiler', 'Titan V8', 'Grizzly', 'Stier', 'Koloss'], .9, 1.15, 2500, 12000],
+    ['Gelände', [7, 6], {}, ['Trapper', 'Yeti', 'Dachs', 'Elch', 'Wolf', 'Bär', 'Steinbock', 'Gams', 'Falke 4x4', 'Fels', 'Kodiak', 'Tundra X', 'Pfad', 'Hirsch'], .85, 1.2, 1200, 7000],
+    ['Nutzfahrzeuge', [2, 6], {}, ['Lasto', 'Packer', 'Fracht', 'Liefer', 'Karre', 'Bote', 'Trans', 'Cargo', 'Rolli', 'Kurier', 'Stapler', 'Dienst'], .85, 1.1, 900, 3500],
+    ['Motorräder', [12], {}, ['Hornisse', 'Wespe', 'Biene', 'Libelle', 'Schwalbe', 'Mücke', 'Raubvogel', 'Pfeil', 'Dorn', 'Funken', 'Sprinter', 'Meteor'], .85, 1.25, 600, 9000],
+    ['Luxus', [4], {}, ['Prestige', 'Majestät', 'Regent', 'Duke', 'Baron', 'Graf', 'Fürst', 'Kaiser', 'Monarch', 'Sultan', 'Imperator', 'Maharadscha'], .9, 1.15, 5000, 60000]
+  ];
+  FAM.forEach(([cat, bases, sz, names, lo, hi, p0, p1], fi) => names.forEach((nm, i) => {
+    const b = CT[bases[i % bases.length]], t = i / (names.length - 1), pr = Math.round(p0 * Math.pow(p1 / p0, t) / 50) * 50;
+    CT.push(Object.assign({}, b, sz, { n: nm, c: COL[(i * 3 + fi) % COL.length], max: Math.round(b.max * (lo + (hi - lo) * t)), acc: Math.round(b.acc * (lo + (hi - lo) * t)), grip: +(b.grip * (1.05 - .15 * t)).toFixed(1), price: pr, cat, ex: 1, rare: pr > 20000 ? 1 : undefined, taxi: undefined }));
+  }));
+})();
 const TANK = { n: 'Panzer', c: '#4a5a3a', max: 150, acc: 140, grip: 12, st: 1.4, m: 7, l: 62, w: 34, sh: 'tank', police: 1, tank: 1, hp: 700 };
 const POL = { n: 'Polizei', c: '#f4f4f4', max: 450, acc: 500, grip: 6, st: 2.8, m: 1.1, l: 46, sh: 'police', police: 1 };
 const SWAT = { n: 'Panzerwagen', c: '#262b34', max: 380, acc: 430, grip: 6, st: 2.2, m: 2.6, l: 52, w: 27, sh: 'swat', police: 1, swat: 1, hp: 320 };
@@ -460,7 +480,7 @@ const S = { lefty: false, size: 1, auto: false, aim: true, rain: true, night: tr
 let nit = 1, drift = 0, rain = 0, rainT = 40, rainTarget = 0, flash = 0, bigMap = false, saveT = 15; const rings = [];
 function buzz(ms) { if (S.vib && navigator.vibrate) try { navigator.vibrate(ms); } catch (e) {} }
 function save() { try { localStorage.setItem('rc3', JSON.stringify({ m: money, o: owned.map(o => ({ ti: o.ti, up: o.up, col: o.col, st: o.st, ne: o.ne })), w: wp.map(w => ({ own: w.own, ammo: w.ammo })), s: S, st: ST, t: ter.map(t => t.own ? 1 : 0), iv: inv, lo: lastOwn, pl: pickLv, hr: heistReady, hb: heistBonus, hm: home, of: outfit, bt: boat ? { col: boat.col } : null })); } catch (e) {} }
-function load() { try { const d = JSON.parse(localStorage.getItem('rc3') || 'null'); if (!d) return; money = d.m; d.w.forEach((w, i) => Object.assign(wp[i], w)); (d.o || []).forEach(o => owned.push({ ti: o.ti, up: Object.assign({ e: 0, t: 0, a: 0, n: 0 }, o.up), col: o.col, st: o.st, ne: o.ne, car: null })); Object.assign(S, d.s || {}); Object.assign(ST, d.st || {}); (d.t || []).forEach((v, i) => { if (v && ter[i]) { ter[i].own = true; ter[i].str = 0; } }); if (d.iv) Object.assign(inv, d.iv); if (d.lo != null) lastOwn = d.lo; if (d.pl) pickLv = d.pl; if (d.hr != null) heistReady = d.hr; heistBonus = !!d.hb; home = d.hm || null; outfit = d.of || 0; boat = d.bt ? { col: d.bt.col, car: null } : null; lastMoney = money; } catch (e) {} }
+function load() { try { const d = JSON.parse(localStorage.getItem('rc3') || 'null'); if (!d) return; money = d.m; d.w.forEach((w, i) => Object.assign(wp[i], w)); (d.o || []).forEach(o => owned.push({ ti: o.ti, up: Object.assign({ e: 0, t: 0, a: 0, n: 0, w: 0 }, o.up), col: o.col, st: o.st, ne: o.ne, car: null })); Object.assign(S, d.s || {}); Object.assign(ST, d.st || {}); (d.t || []).forEach((v, i) => { if (v && ter[i]) { ter[i].own = true; ter[i].str = 0; } }); if (d.iv) Object.assign(inv, d.iv); if (d.lo != null) lastOwn = d.lo; if (d.pl) pickLv = d.pl; if (d.hr != null) heistReady = d.hr; heistBonus = !!d.hb; home = d.hm || null; outfit = d.of || 0; boat = d.bt ? { col: d.bt.col, car: null } : null; lastMoney = money; } catch (e) {} }
 function applyS() { document.body.classList.toggle('lefty', S.lefty); document.documentElement.style.setProperty('--k', S.size); }
 function toast(txt, col, sec) { toastTxt = txt; toastCol = col || '#fff'; toastT = sec || 2.5; }
 function hurt(d) { if (p.armor > 0) { const a = Math.min(p.armor, d); p.armor -= a; d -= a; } p.hp -= d; }
@@ -471,7 +491,7 @@ function applyUp(c) {                              // Tuning-Stufen in Werte umr
 }
 function newCar(t) {
   const c = { t, ti: CT.indexOf(t), x: 0, y: 0, a: 0, vx: 0, vy: 0, hp: 0, hpm: 100, drv: null, wreck: false, wt: 0, stk: 0, rev: 0, cd: 0, spd: 0,
-    l: t.l || 44, w: t.w || 22, ai: null, mode: 'patrol', th: 0, sl: 0, pin: null, col: null, fcd: 0, up: { e: 0, t: 0, a: 0, n: 0 }, own: null, tmp: false, gone: false };
+    l: t.l || 44, w: t.w || 22, ai: null, mode: 'patrol', th: 0, sl: 0, pin: null, col: null, fcd: 0, up: { e: 0, t: 0, a: 0, n: 0, w: 0 }, own: null, tmp: false, gone: false };
   applyUp(c); c.hp = c.hpm; return c;
 }
 
@@ -826,6 +846,16 @@ function aimAssist(a0, ox, oy) {     // Zielhilfe für Touch: rastet auf Ziel im
   if (heli && !heli.leave) test(heli.x, heli.y, 2.5);
   return best === null ? a0 : best;
 }
+function updCarGuns(dt) {
+  const c = p.car; if (!c || c.wreck || !c.up || !c.up.w) return; c.gcd = (c.gcd || 0) - dt;
+  let b = null, bd = 400; const T = (o, d) => { if (d < bd) { bd = d; b = o; } };
+  for (const o of cars) if (o !== c && !o.wreck && !o.sunk && !o.t.tram && (o.t.tank || o.t.swat || (o.t.police && (o.mode === 'pursue' || stars > 0)))) T(o, dist(o.x, o.y, c.x, c.y));
+  for (const q of peds) if (!q.dead && ((q.cop && stars > 0) || (q.gun && q.prov > 0))) T(q, dist(q.x, q.y, c.x, c.y));
+  if (!b) { c.gunA = c.a; return; } c.gunA = Math.atan2(b.y - c.y, b.x - c.x);
+  if (c.gcd <= 0) { c.gcd = c.up.w > 1 ? .2 : .34; const n = c.up.w > 1 ? 2 : 1, ca = Math.cos(c.gunA), sa = Math.sin(c.gunA);
+    for (let i = 0; i < n; i++) { const off = (i - (n - 1) / 2) * 9, a = c.gunA + rnd(-.04, .04); shots.push({ x: c.x + ca * 18 - sa * off, y: c.y + sa * 18 + ca * off, vx: Math.cos(a) * 760, vy: Math.sin(a) * 760, l: .55, d: n > 1 ? 3 : 2, k: 0, own: 'p', src: c }); }
+    tone(210, .04, 'square', .06, 80); parts.push({ x: c.x + ca * 20, y: c.y + sa * 20, vx: 0, vy: 0, l: .05, ml: .05, s: 5, c: '#fff3a0' }); }
+}
 function fire() {
   const w = WP[curW], s = wp[curW]; if (s.ammo <= 0) { fcd = .3; tone(120, .05, 'square', .08); return; }
   s.ammo--; fcd = w.cd; lastShotT = time;
@@ -1017,13 +1047,14 @@ function pickMenu(title, list, prop, price) {
 function repMenu() {
   return { t: 'WERKSTATT', rows: () => { const c = p.car, fe = { a: 'fetch', t: `🚗 Mein Auto zu mir holen (zuletzt gefahren${lastOwn >= 0 && owned[lastOwn] ? ': ' + CT[owned[lastOwn].ti].n : ''})`, pr: 100, off: lastOwn < 0 || !owned[lastOwn] }; if (!c || c.t.tram) return [fe, { a: 'x', t: 'Fahre mit einem Auto herein, um es zu tunen', off: true }]; const U = c.up;
       return [fe, { a: 'fix', t: 'Reparatur', pr: 100, off: c.hp >= c.hpm }, { a: 'e', t: `Motor Stufe ${U.e}/5 – mehr Tempo`, pr: 400 * (U.e + 1), off: U.e >= 5 }, { a: 't', t: `Reifen & Fahrwerk Stufe ${U.t}/5 – mehr Grip`, pr: 300 * (U.t + 1), off: U.t >= 5 },
-        { a: 'a', t: `Panzerung Stufe ${U.a}/5 – mehr Leben`, pr: 500 * (U.a + 1), off: U.a >= 5 }, { a: 'n', t: U.n ? 'Nitro-Einbau ✔ eingebaut' : 'Nitro einbauen', pr: 1500, off: !!U.n },
+        { a: 'a', t: `Panzerung Stufe ${U.a}/5 – mehr Leben (+35)`, pr: 500 * (U.a + 1), off: U.a >= 5 }, { a: 'w', t: U.w >= 2 ? 'Bordwaffen Stufe 2/2 – zwei Läufe ✔' : U.w === 1 ? 'Bordwaffen Stufe 2/2 – zweiter Lauf (schießt automatisch)' : 'Bordwaffen Stufe 1/2 – ein Lauf, schießt automatisch auf Polizei', pr: 2500 * (U.w + 1), off: U.w >= 2 }, { a: 'n', t: U.n ? 'Nitro-Einbau ✔ eingebaut' : 'Nitro einbauen', pr: 1500, off: !!U.n },
         { a: 'col', t: 'Farbe wählen …' }, { a: 'str', t: 'Rennstreifen wählen …' }, { a: 'neon', t: 'Unterbodenlicht wählen …' },
-        { a: 'spray', t: 'Neu lackieren (zufällig) + Fahndung löschen', pr: 300 }, { a: 'save', t: 'Auto behalten (gehört dir, wird gespeichert)', off: c.own != null || owned.length >= 6 }]; },
+        { a: 'spray', t: 'Neu lackieren (zufällig) + Fahndung löschen', pr: 300 }, { a: 'save', t: 'Auto behalten (gehört dir, wird gespeichert)', off: c.own != null || owned.length >= 12 }]; },
     act: a => { if (a === 'fetch') return fetchCar(); const c = p.car; if (!c) return;
       if (a === 'col') { openMenu(pickMenu('FARBE', PAINTN, 'col', 120)); return; } if (a === 'str') { openMenu(pickMenu('RENNSTREIFEN', STRIPES, 'st', 80)); return; } if (a === 'neon') { openMenu(pickMenu('UNTERBODENLICHT', NEONS, 'neon', 200)); return; }
       if (a === 'fix') { money -= 100; c.hp = c.hpm; return 'Auto repariert!'; }
       if (a === 'e' || a === 't' || a === 'a') { const pr = (a === 'e' ? 400 : a === 't' ? 300 : 500) * (c.up[a] + 1); if (money < pr || c.up[a] >= 5) return; money -= pr; c.up[a]++; applyUp(c); if (a === 'a') c.hp += 35; saveCustom(c); return 'Upgrade eingebaut!'; }
+      if (a === 'w') { const pr = 2500 * ((c.up.w || 0) + 1); if (money < pr || (c.up.w || 0) >= 2) return; money -= pr; c.up.w = (c.up.w || 0) + 1; saveCustom(c); return c.up.w === 1 ? 'Bordwaffe eingebaut!' : 'Zweiter Lauf eingebaut!'; }
       if (a === 'n') { if (money < 1500 || c.up.n) return; money -= 1500; c.up.n = 1; saveCustom(c); return 'Nitro eingebaut – Taste N / NITRO-Knopf!'; }
       if (a === 'save') { c.own = owned.length; owned.push({ ti: c.ti, up: c.up, col: c.col, st: c.st, ne: c.neon, car: c }); return 'Das Auto gehört jetzt dir!'; }
       money -= 300; c.col = pick(PAINT); saveCustom(c); heat = 0; stars = 0; bust = 0; for (const k of cars) if (k.t.police && k.drv === 'cop') k.mode = 'patrol'; return 'Frisch lackiert – die Polizei hat dich vergessen!'; } };
@@ -1041,15 +1072,16 @@ function myCars() {
   return { t: 'MEINE AUTOS', rows: () => owned.length ? owned.map((o, i) => ({ a: 'o' + i, t: `${CT[o.ti].n}  Motor ${o.up.e} · Reifen ${o.up.t} · Panzer ${o.up.a}${o.car && !o.car.wreck ? '  (draußen)' : ''}`, off: !!(o.car && !o.car.wreck) })) : [{ a: 'x', t: 'Noch keine Autos', off: true }],
     act: a => { if (a[0] !== 'o') return; spawnOwned(+a.slice(1)); return 'Ausgeparkt – steht vor der Garage'; } };
 }
-function buyCars() {
-  const list = CT.map((t, i) => [t, i]).sort((a, b) => a[0].price - b[0].price);
-  return { t: 'AUTOHAUS', rows: () => list.map(([t, i]) => ({ a: 'c' + i, t: `${t.n}  (${Math.round(t.max * .4)} km/h)`, pr: t.price, off: owned.length >= 6 })),
-    act: a => { const i = +a.slice(1), t = CT[i]; if (money < t.price || owned.length >= 6) return; money -= t.price; owned.push({ ti: i, up: { e: 0, t: 0, a: 0, n: 0 }, col: null, car: null }); spawnOwned(owned.length - 1); return t.n + ' gekauft – wartet vor der Garage!'; } };
+function buyCars(cat) {
+  if (!cat) return { t: 'AUTOHAUS – Kategorie wählen', rows: () => CATS.map((c, i) => ({ a: 'k' + i, t: `🚗 ${c}  (${CT.filter(t => t.cat === c).length} Modelle)` })), act: a => { openMenu(buyCars(CATS[+a.slice(1)])); } };
+  const list = CT.map((t, i) => [t, i]).filter(([t]) => t.cat === cat).sort((a, b) => a[0].price - b[0].price);
+  return { t: 'AUTOHAUS – ' + cat, rows: () => [{ a: 'back', t: '⬅ Alle Kategorien' }, ...list.map(([t, i]) => ({ a: 'c' + i, t: `${t.n}  (${Math.round(t.max * .4)} km/h)`, pr: t.price, off: owned.length >= 12 }))],
+    act: a => { if (a === 'back') { openMenu(buyCars()); return; } const i = +a.slice(1), t = CT[i]; if (money < t.price || owned.length >= 12) return; money -= t.price; owned.push({ ti: i, up: { e: 0, t: 0, a: 0, n: 0, w: 0 }, col: null, car: null }); spawnOwned(owned.length - 1); return t.n + ' gekauft – wartet vor der Garage!'; } };
 }
 function garMenu() {
   return { t: 'GARAGE', rows: () => { const c = p.car, R = [];
-      if (c) { R.push({ a: 'save', t: 'Auto in Garage speichern (gehört dir)', off: c.own != null || owned.length >= 6 }); R.push({ a: 'tip', t: 'Tuning, Farbe, Nitro: in der Werkstatt (K)', off: true }); }
-      R.push({ a: 'my', t: `Meine Autos (${owned.length}/6)` }, { a: 'buy', t: 'Autohaus: Autos kaufen' }); return R; },
+      if (c) { R.push({ a: 'save', t: 'Auto in Garage speichern (gehört dir)', off: c.own != null || owned.length >= 12 }); R.push({ a: 'tip', t: 'Tuning, Farbe, Nitro: in der Werkstatt (K)', off: true }); }
+      R.push({ a: 'my', t: `Meine Autos (${owned.length}/12)` }, { a: 'buy', t: 'Autohaus: Autos kaufen' }); return R; },
     act: a => { const c = p.car;
       if (a === 'my') { openMenu(myCars()); return; } if (a === 'buy') { openMenu(buyCars()); return; } if (!c) return;
       if (a === 'save') { c.own = owned.length; owned.push({ ti: c.ti, up: c.up, col: c.col, st: c.st, ne: c.neon, car: c }); return 'Das Auto gehört jetzt dir!'; } } };
@@ -1427,6 +1459,7 @@ function update(dt) {
   if (inp.use) { inp.use = false; useBtn(); }
   if (inp.wpn) { inp.wpn = false; cycleW(); }
   fcd -= dt; if ((inp.fire || k.KeyF || k.KeyX) && fcd <= 0 && !p.sw) fire();
+  updCarGuns(dt);
   const pc = p.car;
   if (pc) {                                                         // Auto steuern
     const wheel = S.drive === 'wheel'; let thr = clamp((inp.gas ? 1 : 0) - (inp.brk ? 1 : 0) - ky + (!wheel && Math.abs(sy) > .45 ? -sy : 0), -1, 1); const hand = (inp.gas && inp.brk) || shift; if (hand) thr = 0;
@@ -1554,6 +1587,7 @@ function drawCar(c) {
   ctx.fillStyle = 'rgba(255,255,255,.13)'; rr(-hl + 3, -hw + 1.5, L - 6, Wd * .26, 3); ctx.fill();
   if (!['bike', 'bus', 'truck', 'swat', 'van'].includes(sh)) { const hg = ctx.createLinearGradient(hl * .3, 0, hl, 0); hg.addColorStop(0, 'rgba(255,255,255,.22)'); hg.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = hg; ctx.fillRect(hl * .3, -hw * .6, hl * .7, hw * 1.2); }
   if (sh !== 'bike') { ctx.fillStyle = shade(col, -.4); ctx.fillRect(hl * .3, -hw - 2, 3, 2); ctx.fillRect(hl * .3, hw, 3, 2); }          // Außenspiegel
+  if (c.up && c.up.w && !c.wreck) { const ga = (c.gunA == null ? c.a : c.gunA) - c.a, nw = c.up.w > 1 ? 2 : 1; ctx.save(); ctx.rotate(ga); ctx.fillStyle = '#2b2f36'; ctx.beginPath(); ctx.arc(-2, 0, 4.6, 0, TAU); ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = '#000'; ctx.stroke(); ctx.fillStyle = '#6a7080'; for (let i = 0; i < nw; i++) { const oy = (i - (nw - 1) / 2) * 5; ctx.fillRect(0, oy - 1.2, 15, 2.4); ctx.strokeRect(0, oy - 1.2, 15, 2.4); } ctx.fillStyle = '#9aa2b4'; ctx.beginPath(); ctx.arc(-2, 0, 2, 0, TAU); ctx.fill(); ctx.restore(); }
   if (c.pass && c.pass.open) { ctx.fillStyle = shade(col, -.25); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(hl * .2, hw); ctx.lineTo(hl * .5, hw + 9); ctx.lineTo(hl * .5 + 2, hw + 7); ctx.lineTo(hl * .26, hw); ctx.closePath(); ctx.fill(); ctx.stroke(); }
   if (c.hp < c.hpm * .5) { ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(hl * .1, -hw + 2); ctx.lineTo(hl * .45, -1); ctx.lineTo(hl * .3, hw - 2); ctx.moveTo(-hl * .5, hw - 3); ctx.lineTo(-hl * .2, 2); ctx.stroke(); }   // Schäden
   if (sh === 'bike') { ctx.fillStyle = '#555'; ctx.fillRect(hl - 8, -hw - 3, 2, Wd + 6); ctx.fillStyle = '#d33'; ctx.beginPath(); ctx.arc(-1, 0, 4.2, 0, TAU); ctx.fill(); ctx.fillStyle = '#e9b98a'; ctx.beginPath(); ctx.arc(1, 0, 2.6, 0, TAU); ctx.fill(); }
@@ -2156,7 +2190,7 @@ function loop(ts) {
   render(); if (photoReq && --photoReq === 0) takePhoto();
 }
 init(); requestAnimationFrame(loop);
-if (location.hash === '#debug') window.__rc = { useBtn, blockType, curb, openMenu, p, cars, peds, shops, inp, S, ramps, mc, tileAt, startGame, update, render, island, landB, cam: () => [camX, camY, zoom], setCam: (x, y) => { camX = x; camY = y; }, get started() { return started; }, get money() { return money; }, set money(v) { money = v; }, get mission() { return mission; }, startMission, get npc() { return npc; }, get heistBonus() { return heistBonus; }, startLock, startHeist, get mini() { return mini; }, tgts, get pickLv() { return pickLv; }, set pickLv(v) { pickLv = v; }, get heistReady() { return heistReady; }, set heistReady(v) { heistReady = v; }, npcBtn, burgleBtn, buildWorld, fetchCar, get zone() { return ZONE; }, get lastOwn() { return lastOwn; }, set lastOwn(v) { lastOwn = v; }, owned, startRide, arriveAt, startAccident, helpers, tanks, jets, bombs, get chaos() { return chaos; }, set chaos(v) { chaos = v; }, wp, ST, enterShop, exitShop, startRide, get inside() { return inside; }, get ride() { return ride; }, get dead() { return dead; }, tramStops, tram: () => tram, openMenuX: () => menu, wasted, busted, respawn, reviveNow, inv, useItem, startJob, endJob, renderHot, hosp: () => hosp, dump: () => dump, get jobSt() { return jobSt; }, get stars() { return stars; }, get heat() { return heat; }, get armor() { return p.armor; }, addHeat, toggleBig: () => { bigMap = !bigMap; $('mapHit').classList.toggle('big', bigMap); }, W, N, TS, PER, NB };
+if (location.hash === '#debug') window.__rc = { shots, useBtn, blockType, curb, openMenu, p, cars, peds, shops, inp, S, ramps, mc, tileAt, startGame, update, render, island, landB, cam: () => [camX, camY, zoom], setCam: (x, y) => { camX = x; camY = y; }, get started() { return started; }, get money() { return money; }, set money(v) { money = v; }, get mission() { return mission; }, startMission, get npc() { return npc; }, get heistBonus() { return heistBonus; }, startLock, startHeist, get mini() { return mini; }, tgts, get pickLv() { return pickLv; }, set pickLv(v) { pickLv = v; }, get heistReady() { return heistReady; }, set heistReady(v) { heistReady = v; }, npcBtn, burgleBtn, buildWorld, fetchCar, get zone() { return ZONE; }, get lastOwn() { return lastOwn; }, set lastOwn(v) { lastOwn = v; }, owned, startRide, arriveAt, startAccident, helpers, tanks, jets, bombs, get chaos() { return chaos; }, set chaos(v) { chaos = v; }, wp, ST, enterShop, exitShop, startRide, get inside() { return inside; }, get ride() { return ride; }, get dead() { return dead; }, tramStops, tram: () => tram, openMenuX: () => menu, wasted, busted, respawn, reviveNow, inv, useItem, startJob, endJob, renderHot, hosp: () => hosp, dump: () => dump, get jobSt() { return jobSt; }, get stars() { return stars; }, get heat() { return heat; }, get armor() { return p.armor; }, addHeat, toggleBig: () => { bigMap = !bigMap; $('mapHit').classList.toggle('big', bigMap); }, W, N, TS, PER, NB };
 })();
 </script>
 </body>
