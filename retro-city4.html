@@ -593,13 +593,17 @@ function updPass(dt) {
   if (passT <= 0) { passT = rnd(8, 15); const T = P(), l = cars.filter(o => o.drv === 'ai' && !o.pass && !o.wreck && o.ai && !o.ai.dec && o.spd > 60 && !o.t.police && !o.t.tram && dist(o.x, o.y, T.x, T.y) > 120 && dist(o.x, o.y, T.x, T.y) < 520 && tileAt(o.x, o.y) === 0);
     if (l.length) pick(l).pass = { t: 5, k: Math.random() < .5 ? 'out' : 'in' }; }
 }
+const shore = [];
 const lightSet = new Set(), sigs = []; let camCd = 0;
 const lightState = h => { const t = (time + (h ? 0 : 8)) % 16; return t < 6 ? 0 : t < 7.5 ? 1 : 2; };    // 0 grün, 1 gelb, 2 rot
 function buildSignals() {
   for (let i = 0; i < NB; i++) for (let j = 0; j < NB; j++) {
     const x = (PER * i + 1) * TS, y = (PER * j + 1) * TS; if (tileAt(x, y) !== 0 || bridge[Math.floor(y / TS) * N + Math.floor(x / TS)]) continue;
     let n = 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (tileAt(x + dx * TS * 2.2, y + dy * TS * 2.2) === 0) n++;
-    if (n >= 3) { lightSet.add(i + ',' + j); sigs.push({ x, y, cam: false }); }
+    if (n >= 3) { lightSet.add(i + ',' + j); sigs.push({ x, y, cam: false });
+      g.fillStyle = 'rgba(255,255,255,.82)'; const x0 = PER * i * TS, y0 = PER * j * TS, T2 = TS * 2.2;     // Haltelinien
+      if (tileAt(x - T2, y) === 0) g.fillRect(x0 - 10, y + 3, 5, TS - 6); if (tileAt(x + T2, y) === 0) g.fillRect(x0 + 2 * TS + 5, y - TS + 3, 5, TS - 6);
+      if (tileAt(x, y - T2) === 0) g.fillRect(x - TS + 3, y0 - 10, TS - 6, 5); if (tileAt(x, y + T2) === 0) g.fillRect(x + 3, y0 + 2 * TS + 5, TS - 6, 5); }
   }
   for (let k = 0; k < Math.min(7, sigs.length); k++) pick(sigs).cam = true;
 }
@@ -1165,6 +1169,16 @@ function updEvents(dt) {                          // Zufallsereignis: Geldtransp
   ctT -= dt; if (ctT > 0) return; ctT = rnd(120, 200); if (cars.some(c => c.cash && !c.wreck && !c.gone)) return;
   const c = newCar(CASHT); c.cash = true; cars.push(c); aiPlace(c); toast('💰 Ein Geldtransporter ist unterwegs! Rammen oder abschießen = Beute (gold markiert)', '#ffd200', 4);
 }
+function updFx(dt) {
+  if (parts.length > 500) return; const lim = 620;
+  for (const c of cars) { if (c.wreck || c.t.tram || Math.abs(c.x - camX) > lim || Math.abs(c.y - camY) > lim) continue;
+    const ca = Math.cos(c.a), sa = Math.sin(c.a), rx = c.x - ca * c.l * .5, ry = c.y - sa * c.l * .5;
+    if (c.t.boat) { if (c.spd > 40 && Math.random() < dt * 28) parts.push({ x: rx + rnd(-5, 5), y: ry + rnd(-5, 5), vx: -ca * 10 + rnd(-12, 12), vy: -sa * 10 + rnd(-12, 12), l: .9, ml: .9, s: rnd(3, 5), c: 'rgba(255,255,255,.65)' }); continue; }
+    if (c.drv === 'p' && c.sl > 110 && c.spd > 100 && Math.random() < dt * 40) parts.push({ x: rx + rnd(-6, 6), y: ry + rnd(-6, 6), vx: rnd(-25, 25), vy: rnd(-25, 25), l: .6, ml: .6, s: rnd(4, 7), c: 'rgba(235,235,235,.5)' });
+    else if (c.drv && c.th > .5 && c.spd < 130 && Math.random() < dt * 7) parts.push({ x: rx, y: ry, vx: -ca * 18 + rnd(-8, 8), vy: -sa * 18 + rnd(-8, 8), l: .5, ml: .5, s: rnd(2.5, 4), c: 'rgba(150,150,150,.35)' });
+    if (c.hp < c.hpm * .3 && Math.random() < dt * 10) parts.push({ x: c.x + ca * c.l * .3, y: c.y + sa * c.l * .3, vx: rnd(-10, 10), vy: rnd(-26, -8), l: .8, ml: .8, s: rnd(3, 6), c: 'rgba(60,60,60,.45)' });
+  }
+}
 function updNightLife(dt) {                       // nachts stehen mehr leere Autos und Boote herum, am Tag verschwinden sie wieder
   nlT -= dt; if (nlT > 0) return; nlT = 2.5; const T = P(), ex = cars.filter(c => c.nl);
   if (isNight()) {
@@ -1627,7 +1641,7 @@ function update(dt) {
   ST.time += dt; if (p.car) ST.m += p.car.spd * dt * .111; if (money > lastMoney) ST.earn += money - lastMoney; lastMoney = money;
   terT -= dt; if (terT <= 0) { terT = 30; const n = ter.filter(t => t.own).length; if (n) { money += n * 120; toast('Revier-Einnahmen  +$' + n * 120, '#8f8', 2); } }
   const ct = ter.find(t => PP.x > t.x0 && PP.x < t.x1 && PP.y > t.y0 && PP.y < t.y1) || null; if (ct !== curTer) { curTer = ct; if (ct) toast(ct.own ? 'Dein Revier: ' + ct.n : 'Revier: ' + ct.n + '  (Stärke ' + ct.str + '%)', ct.col, 2.2); }
-  updBg(dt); updPass(dt); updNightLife(dt); updCams(); updAch(dt); updEvents(dt);
+  updBg(dt); updPass(dt); updNightLife(dt); updCams(); updAch(dt); updEvents(dt); updFx(dt);
   saveT -= dt; if (saveT <= 0) { saveT = 15; save(); }
   radioTick(); audioTick();
 }
@@ -1739,6 +1753,9 @@ function render() {
     const rx = (PER * bx + 2) * TS, ry = (PER * by + 2) * TS, rw = 8 * TS, rh = 8 * TS;
     if (vis(rx + rw / 2, ry + rh / 2, rw / 2 + 40)) { ctx.fillStyle = 'rgba(255,255,255,.18)'; for (let i = 0; i < 22; i++) ctx.fillRect(rx + ((i * 61 + time * (14 + i % 4 * 6)) % rw), ry + (i * 29 % rh), 26 + i % 3 * 8, 2); }
   }
+  for (const [tx, ty, m] of shore) { const X = tx * TS, Y = ty * TS; if (Math.abs(X + 24 - camX) > hw + 30 || Math.abs(Y + 24 - camY) > hh + 30) continue;
+    const w = (Math.sin(time * 1.6 + (tx * 7 + ty * 3) * .35) + 1) / 2, d = 3 + w * 9; ctx.fillStyle = `rgba(255,255,255,${.16 + .32 * w})`;
+    if (m & 1) ctx.fillRect(X, Y, d, TS); if (m & 2) ctx.fillRect(X + TS - d, Y, d, TS); if (m & 4) ctx.fillRect(X, Y, TS, d); if (m & 8) ctx.fillRect(X, Y + TS - d, TS, d); }
   if (dk > .08) { ctx.fillStyle = '#ffe9a0'; for (const l of lamps) if (vis(l.x, l.y, 10)) { ctx.beginPath(); ctx.arc(l.x, l.y, 3.5, 0, TAU); ctx.fill(); } }
   for (const sg of sigs) if (vis(sg.x, sg.y, 90)) {
     const o = TS * 1.15; for (const [dx, dy, hh] of [[-1, -1, true], [1, 1, true], [1, -1, false], [-1, 1, false]]) { const L = lightState(hh), col = L === 0 ? '#3f6' : L === 1 ? '#fd3' : '#f33', X = sg.x + dx * o, Y = sg.y + dy * o;
@@ -1772,12 +1789,13 @@ function render() {
   if (!p.car) { if (p.sw) drawSwimmer(p.x, p.y, p.a, time * 9); else drawPerson(p.x, p.y, p.a, OUTFIT[outfit], p.ph, true); }
   for (const s of shots) { ctx.strokeStyle = s.k === 3 ? '#ff7a00' : s.own === 'c' ? '#9cf' : '#fff3a0'; ctx.lineWidth = s.k === 3 ? 4 : 2; ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - s.vx * .025, s.y - s.vy * .025); ctx.stroke(); }
   for (const t of trees) if (vis(t.x, t.y, 40)) {                   // Bäume über den Autos: weiche Kronen aus Blättergruppen
+    ctx.save(); ctx.translate(Math.sin(time * 1.2 + t.x * .03) * 1.5 * (1 + rain), Math.cos(time * .9 + t.y * .03) * .8);
     const r = t.r, sd = Math.floor(t.x * 7 + t.y * 3) % 5, dark = t.pine ? '#1f5a2c' : '#2d7a2d', mid = t.pine ? '#2b7a3c' : '#3f9a3a', lite = t.pine ? '#3b9a4a' : '#58b84b';
     ctx.fillStyle = 'rgba(0,0,0,.24)'; ctx.beginPath(); ctx.ellipse(t.x + 6, t.y + 8, r * 1.02, r * .9, 0, 0, TAU); ctx.fill();
     const blobs = [[0, 0, 1], [.46, -.18, .66], [-.42, -.28, .66], [.2, .46, .62], [-.36, .36, .6]];
     ctx.lineWidth = 1.6; ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.fillStyle = dark; for (const [dx, dy, k] of blobs) { ctx.beginPath(); ctx.arc(t.x + dx * r * .72, t.y + dy * r * .72, r * k * .72, 0, TAU); ctx.fill(); ctx.stroke(); }
     ctx.fillStyle = mid; for (const [dx, dy, k] of blobs) { ctx.beginPath(); ctx.arc(t.x + dx * r * .72 - r * .08, t.y + dy * r * .72 - r * .1, r * k * .5, 0, TAU); ctx.fill(); }
-    ctx.fillStyle = lite; ctx.beginPath(); ctx.arc(t.x - r * .3 + sd, t.y - r * .34, r * .22, 0, TAU); ctx.arc(t.x + r * .22, t.y - r * .1, r * .14, 0, TAU); ctx.fill();
+    ctx.fillStyle = lite; ctx.beginPath(); ctx.arc(t.x - r * .3 + sd, t.y - r * .34, r * .22, 0, TAU); ctx.arc(t.x + r * .22, t.y - r * .1, r * .14, 0, TAU); ctx.fill(); ctx.restore();
   }
   for (const q of rings) { ctx.globalAlpha = Math.max(0, q.l * 2); ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, TAU); ctx.stroke(); }
   for (const q of parts) { ctx.globalAlpha = Math.max(0, q.l / q.ml); ctx.fillStyle = q.c; ctx.beginPath(); ctx.arc(q.x, q.y, q.s * (q.s > 3 ? 1.6 - q.l / q.ml * .6 : 1), 0, TAU); ctx.fill(); }
@@ -1813,6 +1831,7 @@ function render() {
     ctx.save(); ctx.translate(vw / 2, vh / 2); ctx.scale(zoom, zoom); ctx.translate(-camX, -camY); ctx.globalCompositeOperation = 'lighter';
     const glow = (x, y, r, c, a) => { const gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, c.replace('A', a)); gr.addColorStop(1, c.replace('A', 0)); ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, 2 * r, 2 * r); }, ga = Math.min(1, dk * 2.4);
     for (const l of lamps) if (vis(l.x, l.y, 40)) glow(l.x, l.y, 36, 'rgba(255,214,140,A)', .5 * ga);
+    if (rain > .3) for (const l of lamps) if (vis(l.x, l.y, 60)) { ctx.save(); ctx.translate(l.x, l.y + 14); ctx.scale(.45, 2.4); glow(0, 0, 26, 'rgba(255,214,140,A)', .32 * Math.min(1, rain) * ga); ctx.restore(); }
     for (const sg of sigs) if (vis(sg.x, sg.y, 90)) { const o = TS * 1.15; for (const [dx, dy, hh] of [[-1, -1, true], [1, 1, true], [1, -1, false], [-1, 1, false]]) { const L = lightState(hh); glow(sg.x + dx * o, sg.y + dy * o, 22, L === 0 ? 'rgba(60,255,110,A)' : L === 1 ? 'rgba(255,220,60,A)' : 'rgba(255,50,40,A)', .7 * ga); } }
     for (const sh of shops) if (vis(sh.x, sh.y, 120) && !shopClosed(sh)) glow(sh.x + DX[sh.bd] * 78, sh.y + DY[sh.bd] * 78, 78, hexA(sh.col, 'A').replace(/,A\)/, ',A)'), .42 * ga);
     for (const c of cars) if (!c.wreck && !c.t.tram && vis(c.x, c.y, 60) && (c.drv != null)) { const ca = Math.cos(c.a), sa = Math.sin(c.a); glow(c.x - ca * c.l * .5, c.y - sa * c.l * .5, 15, 'rgba(255,40,30,A)', (c.th < 0 ? .75 : .4) * ga); glow(c.x + ca * c.l * .5, c.y + sa * c.l * .5, 20, 'rgba(255,240,190,A)', .45 * ga); }
@@ -2242,7 +2261,8 @@ function buildWorld(z, carry) {
   map.fill(0); bridge.fill(0); guard.fill(0); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, W);
   heli = null; taxi = null; mission = null; jobSt = null; tram = null; bank = null; shopLock = null; inside = null;
   owned.forEach(o => { if (!carry || o.car !== carry) o.car = null; });
-  lightSet.clear(); sigs.length = 0; buildMap(); buildSignals();
+  lightSet.clear(); sigs.length = 0; shore.length = 0; buildMap(); buildSignals();
+  for (let ty = 0; ty < N; ty++) for (let tx = 0; tx < N; tx++) if (map[ty * N + tx] === 5) { const L = (x, y) => x >= 0 && y >= 0 && x < N && y < N && map[y * N + x] !== 5, m = (L(tx - 1, ty) ? 1 : 0) | (L(tx + 1, ty) ? 2 : 0) | (L(tx, ty - 1) ? 4 : 0) | (L(tx, ty + 1) ? 8 : 0); if (m) shore.push([tx, ty, m]); }
   const curbIn = (bx, by) => { const l = curb.filter(c => Math.floor(c[0] / PER) === bx && Math.floor(c[1] / PER) === by); const c = l[l.length >> 1] || curb[0]; return { x: (c[0] + .5) * TS, y: (c[1] + .5) * TS }; };
   const nearCurb = (x, y) => curb.reduce((b, q) => { const cx = (q[0] + .5) * TS, cy = (q[1] + .5) * TS, d = dist(cx, cy, x, y); return !b || d < b.d ? { x: cx, y: cy, d } : b; }, null);
   const place = list => list.forEach(([k, bx, by, f]) => { const o = Object.assign(curbIn(bx, by), SH[k]); if (f != null) { const l = curb.filter(c => Math.floor(c[0] / PER) === bx && Math.floor(c[1] / PER) === by); const c = l[Math.floor(l.length * f)] || l[0]; if (c) { o.x = (c[0] + .5) * TS; o.y = (c[1] + .5) * TS; } } shops.push(o); });
