@@ -589,6 +589,23 @@ function updPass(dt) {
   if (passT <= 0) { passT = rnd(8, 15); const T = P(), l = cars.filter(o => o.drv === 'ai' && !o.pass && !o.wreck && o.ai && !o.ai.dec && o.spd > 60 && !o.t.police && !o.t.tram && dist(o.x, o.y, T.x, T.y) > 120 && dist(o.x, o.y, T.x, T.y) < 520 && tileAt(o.x, o.y) === 0);
     if (l.length) pick(l).pass = { t: 5, k: Math.random() < .5 ? 'out' : 'in' }; }
 }
+const lightSet = new Set(), sigs = []; let camCd = 0;
+const lightState = h => { const t = (time + (h ? 0 : 8)) % 16; return t < 6 ? 0 : t < 7.5 ? 1 : 2; };    // 0 grün, 1 gelb, 2 rot
+function buildSignals() {
+  for (let i = 0; i < NB; i++) for (let j = 0; j < NB; j++) {
+    const x = (PER * i + 1) * TS, y = (PER * j + 1) * TS; if (tileAt(x, y) !== 0 || bridge[Math.floor(y / TS) * N + Math.floor(x / TS)]) continue;
+    let n = 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (tileAt(x + dx * TS * 2.2, y + dy * TS * 2.2) === 0) n++;
+    if (n >= 3) { lightSet.add(i + ',' + j); sigs.push({ x, y, cam: false }); }
+  }
+  for (let k = 0; k < Math.min(7, sigs.length); k++) pick(sigs).cam = true;
+}
+function updCams() {
+  const c = p.car; if (!c || c.t.boat || c.wreck || time < camCd) return;
+  for (const sg of sigs) if (dist(c.x, c.y, sg.x, sg.y) < 75) {
+    const hz = Math.abs(Math.cos(c.a)) > Math.abs(Math.sin(c.a)), red = lightState(hz) === 2 && dist(c.x, c.y, sg.x, sg.y) < 40;
+    if (sg.cam && (c.spd > 270 || (red && c.spd > 90))) { camCd = time + 8; const f = Math.min(money, red ? 100 : 150); money -= f; flash = .8; toast(`📸 BLITZER! ${red ? 'Rotlichtverstoß' : 'Zu schnell'} – Bußgeld -$${f}`, '#ffe14d', 3); tone(1500, .08, 'square', .1); return; }
+  }
+}
 function aiPlace(c) {
   for (let tr = 0; tr < 60; tr++) {
     const d = rint(0, 3), ri = rint(0, NB - 1), ci = d < 2 ? rint(1, NB - 1) : rint(0, NB - 2);
@@ -612,13 +629,14 @@ function blocked(c, rg) {
 }
 function unstuck(c, dt, o) {      // Festgefahren? Kurz rückwärts oder (Verkehr, weit weg) umsetzen
   if (c.rev > 0) { c.rev -= dt; o.thr = -1; o.st = -o.st; return; }
-  if (c.spd < 14) c.stk += dt; else c.stk = 0;
+  if (c.spd < 14 && !c.lw) c.stk += dt; else c.stk = 0;
   if (c.stk > (c.drv === 'ai' ? 3 : 1.2)) { c.stk = 0; if (c.drv === 'ai' && dist(c.x, c.y, P().x, P().y) > 650) aiPlace(c); else c.rev = 1.2; }
 }
 function aiDrive(c, dt) {
   const a = c.ai; if (!a) return;
   const d = a.d, sg = d < 2 ? 1 : -1, h = d % 2 === 0, s = sg * (h ? c.x : c.y);
   const sIn = sg > 0 ? PER * a.ci * TS : -(PER * a.ci + 2) * TS, sOut = sg > 0 ? (PER * a.ci + 2) * TS : -PER * a.ci * TS;
+  const LC = h ? a.ci : a.ri, LR = h ? a.ri : a.ci, dS = sIn - s;
   if (!a.dec && s >= sIn - 170) {                                  // vor der Kreuzung: Richtung wählen
     a.dec = true; const col = h ? a.ci : a.ri, row = h ? a.ri : a.ci, o = [];
     if (segOut(d, col, row)) o.push(0, 0);
@@ -632,6 +650,7 @@ function aiDrive(c, dt) {
   const ax = hh ? c.x + DX[nd] * L : lw, ay = hh ? lw : c.y + DY[nd] * L;
   const o = { st: clamp(wrap(Math.atan2(ay - c.y, ax - c.x) - c.a) * 2.2, -1, 1), thr: 0 };
   const vf = c.vx * Math.cos(c.a) + c.vy * Math.sin(c.a); let v = a.cruise; if (a.dec && a.turn) v = Math.min(v, 88); if (c.pass) v = 0;
+  c.lw = false; if (dS > -2 && dS < 150 && lightSet.has(LC + ',' + LR)) { const L = lightState(h); if (L === 2 || (L === 1 && dS > 30)) { c.lw = true; v = Math.max(0, Math.min(v, (dS - 8) * 1.5)); } }
   o.thr = vf < v - 6 ? 1 : (vf > v + 14 ? -.35 : 0);
   if (blocked(c, 60 + vf * .45)) o.thr = vf > 14 ? -1 : 0;
   if (o.thr < 0 && vf < 14) o.thr = 0;
@@ -1574,7 +1593,7 @@ function update(dt) {
   ST.time += dt; if (p.car) ST.m += p.car.spd * dt * .111; if (money > lastMoney) ST.earn += money - lastMoney; lastMoney = money;
   terT -= dt; if (terT <= 0) { terT = 30; const n = ter.filter(t => t.own).length; if (n) { money += n * 120; toast('Revier-Einnahmen  +$' + n * 120, '#8f8', 2); } }
   const ct = ter.find(t => PP.x > t.x0 && PP.x < t.x1 && PP.y > t.y0 && PP.y < t.y1) || null; if (ct !== curTer) { curTer = ct; if (ct) toast(ct.own ? 'Dein Revier: ' + ct.n : 'Revier: ' + ct.n + '  (Stärke ' + ct.str + '%)', ct.col, 2.2); }
-  updBg(dt); updPass(dt); updNightLife(dt);
+  updBg(dt); updPass(dt); updNightLife(dt); updCams();
   saveT -= dt; if (saveT <= 0) { saveT = 15; save(); }
   radioTick(); audioTick();
 }
@@ -1686,6 +1705,11 @@ function render() {
     if (vis(rx + rw / 2, ry + rh / 2, rw / 2 + 40)) { ctx.fillStyle = 'rgba(255,255,255,.18)'; for (let i = 0; i < 22; i++) ctx.fillRect(rx + ((i * 61 + time * (14 + i % 4 * 6)) % rw), ry + (i * 29 % rh), 26 + i % 3 * 8, 2); }
   }
   if (dk > .08) { ctx.fillStyle = '#ffe9a0'; for (const l of lamps) if (vis(l.x, l.y, 10)) { ctx.beginPath(); ctx.arc(l.x, l.y, 3.5, 0, TAU); ctx.fill(); } }
+  for (const sg of sigs) if (vis(sg.x, sg.y, 90)) {
+    const o = TS * 1.15; for (const [dx, dy, hh] of [[-1, -1, true], [1, 1, true], [1, -1, false], [-1, 1, false]]) { const L = lightState(hh), col = L === 0 ? '#3f6' : L === 1 ? '#fd3' : '#f33', X = sg.x + dx * o, Y = sg.y + dy * o;
+      ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(X - 2, Y - 3, 8, 12); ctx.fillStyle = '#22252d'; ctx.fillRect(X - 4, Y - 6, 8, 12); ctx.fillStyle = col; ctx.beginPath(); ctx.arc(X, Y, 3, 0, TAU); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(X - 1.5, Y - 1.5, 1.5, 1.5); }
+    if (sg.cam) { const X = sg.x + o + 8, Y = sg.y - o - 8; ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(X - 3, Y - 2, 12, 12); ctx.fillStyle = '#8a8f98'; ctx.fillRect(X - 5, Y - 5, 12, 10); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.strokeRect(X - 5, Y - 5, 12, 10); ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(X + 1, Y, 3, 0, TAU); ctx.fill(); ctx.fillStyle = Math.floor(time * 2) % 2 ? '#f22' : '#611'; ctx.fillRect(X - 4, Y - 4, 2, 2); }
+  }
   for (const q of tramStops) if (vis(q.px, q.py, 60)) drawStopShelter(q);
   if (!p.car) for (const t of tgts) if (vis(t.x, t.y, 20) && dist(t.x, t.y, p.x, p.y) < 280) drawLockMark(t);
   if (npc && vis(npc.x, npc.y, 30)) { drawPerson(npc.x, npc.y, Math.PI / 2, '#7a2a8a', 0, false, false, '#e9b98a', '#111'); if (Math.floor(time * 2) % 2) text('!', npc.x, npc.y - 24, 24, '#ffd200'); }
@@ -1752,6 +1776,7 @@ function render() {
     ctx.save(); ctx.translate(vw / 2, vh / 2); ctx.scale(zoom, zoom); ctx.translate(-camX, -camY); ctx.globalCompositeOperation = 'lighter';
     const glow = (x, y, r, c, a) => { const gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, c.replace('A', a)); gr.addColorStop(1, c.replace('A', 0)); ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, 2 * r, 2 * r); }, ga = Math.min(1, dk * 2.4);
     for (const l of lamps) if (vis(l.x, l.y, 40)) glow(l.x, l.y, 36, 'rgba(255,214,140,A)', .5 * ga);
+    for (const sg of sigs) if (vis(sg.x, sg.y, 90)) { const o = TS * 1.15; for (const [dx, dy, hh] of [[-1, -1, true], [1, 1, true], [1, -1, false], [-1, 1, false]]) { const L = lightState(hh); glow(sg.x + dx * o, sg.y + dy * o, 22, L === 0 ? 'rgba(60,255,110,A)' : L === 1 ? 'rgba(255,220,60,A)' : 'rgba(255,50,40,A)', .7 * ga); } }
     for (const sh of shops) if (vis(sh.x, sh.y, 120) && !shopClosed(sh)) glow(sh.x + DX[sh.bd] * 78, sh.y + DY[sh.bd] * 78, 78, hexA(sh.col, 'A').replace(/,A\)/, ',A)'), .42 * ga);
     for (const c of cars) if (!c.wreck && !c.t.tram && vis(c.x, c.y, 60) && (c.drv != null)) { const ca = Math.cos(c.a), sa = Math.sin(c.a); glow(c.x - ca * c.l * .5, c.y - sa * c.l * .5, 15, 'rgba(255,40,30,A)', (c.th < 0 ? .75 : .4) * ga); glow(c.x + ca * c.l * .5, c.y + sa * c.l * .5, 20, 'rgba(255,240,190,A)', .45 * ga); }
     ctx.restore();
@@ -2177,7 +2202,7 @@ function buildWorld(z, carry) {
   map.fill(0); bridge.fill(0); guard.fill(0); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, W);
   heli = null; taxi = null; mission = null; jobSt = null; tram = null; bank = null; shopLock = null; inside = null;
   owned.forEach(o => { if (!carry || o.car !== carry) o.car = null; });
-  buildMap();
+  lightSet.clear(); sigs.length = 0; buildMap(); buildSignals();
   const curbIn = (bx, by) => { const l = curb.filter(c => Math.floor(c[0] / PER) === bx && Math.floor(c[1] / PER) === by); const c = l[l.length >> 1] || curb[0]; return { x: (c[0] + .5) * TS, y: (c[1] + .5) * TS }; };
   const nearCurb = (x, y) => curb.reduce((b, q) => { const cx = (q[0] + .5) * TS, cy = (q[1] + .5) * TS, d = dist(cx, cy, x, y); return !b || d < b.d ? { x: cx, y: cy, d } : b; }, null);
   const place = list => list.forEach(([k, bx, by, f]) => { const o = Object.assign(curbIn(bx, by), SH[k]); if (f != null) { const l = curb.filter(c => Math.floor(c[0] / PER) === bx && Math.floor(c[1] / PER) === by); const c = l[Math.floor(l.length * f)] || l[0]; if (c) { o.x = (c[0] + .5) * TS; o.y = (c[1] + .5) * TS; } } shops.push(o); });
@@ -2229,7 +2254,7 @@ function loop(ts) {
   render(); if (photoReq && --photoReq === 0) takePhoto();
 }
 init(); requestAnimationFrame(loop);
-if (location.hash === '#debug') window.__rc = { get mission() { return mission; }, get fog() { return fog; }, set fog(v) { fog = v; }, get snow() { return snow; }, set snow(v) { snow = v; }, shots, useBtn, blockType, curb, openMenu, p, cars, peds, shops, inp, S, ramps, mc, tileAt, startGame, update, render, island, landB, cam: () => [camX, camY, zoom], setCam: (x, y) => { camX = x; camY = y; }, get started() { return started; }, get money() { return money; }, set money(v) { money = v; }, get mission() { return mission; }, startMission, get npc() { return npc; }, get heistBonus() { return heistBonus; }, startLock, startHeist, get mini() { return mini; }, tgts, get pickLv() { return pickLv; }, set pickLv(v) { pickLv = v; }, get heistReady() { return heistReady; }, set heistReady(v) { heistReady = v; }, npcBtn, burgleBtn, buildWorld, fetchCar, get zone() { return ZONE; }, get lastOwn() { return lastOwn; }, set lastOwn(v) { lastOwn = v; }, owned, startRide, arriveAt, startAccident, helpers, tanks, jets, bombs, get chaos() { return chaos; }, set chaos(v) { chaos = v; }, wp, ST, enterShop, exitShop, startRide, get inside() { return inside; }, get ride() { return ride; }, get dead() { return dead; }, tramStops, tram: () => tram, openMenuX: () => menu, wasted, busted, respawn, reviveNow, inv, useItem, startJob, endJob, renderHot, hosp: () => hosp, dump: () => dump, get jobSt() { return jobSt; }, get stars() { return stars; }, get heat() { return heat; }, get armor() { return p.armor; }, addHeat, toggleBig: () => { bigMap = !bigMap; $('mapHit').classList.toggle('big', bigMap); }, W, N, TS, PER, NB };
+if (location.hash === '#debug') window.__rc = { sigs, lightState, get mission() { return mission; }, get fog() { return fog; }, set fog(v) { fog = v; }, get snow() { return snow; }, set snow(v) { snow = v; }, shots, useBtn, blockType, curb, openMenu, p, cars, peds, shops, inp, S, ramps, mc, tileAt, startGame, update, render, island, landB, cam: () => [camX, camY, zoom], setCam: (x, y) => { camX = x; camY = y; }, get started() { return started; }, get money() { return money; }, set money(v) { money = v; }, get mission() { return mission; }, startMission, get npc() { return npc; }, get heistBonus() { return heistBonus; }, startLock, startHeist, get mini() { return mini; }, tgts, get pickLv() { return pickLv; }, set pickLv(v) { pickLv = v; }, get heistReady() { return heistReady; }, set heistReady(v) { heistReady = v; }, npcBtn, burgleBtn, buildWorld, fetchCar, get zone() { return ZONE; }, get lastOwn() { return lastOwn; }, set lastOwn(v) { lastOwn = v; }, owned, startRide, arriveAt, startAccident, helpers, tanks, jets, bombs, get chaos() { return chaos; }, set chaos(v) { chaos = v; }, wp, ST, enterShop, exitShop, startRide, get inside() { return inside; }, get ride() { return ride; }, get dead() { return dead; }, tramStops, tram: () => tram, openMenuX: () => menu, wasted, busted, respawn, reviveNow, inv, useItem, startJob, endJob, renderHot, hosp: () => hosp, dump: () => dump, get jobSt() { return jobSt; }, get stars() { return stars; }, get heat() { return heat; }, get armor() { return p.armor; }, addHeat, toggleBig: () => { bigMap = !bigMap; $('mapHit').classList.toggle('big', bigMap); }, W, N, TS, PER, NB };
 })();
 </script>
 </body>
