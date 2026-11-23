@@ -27,6 +27,8 @@ body.lefty #stick{left:auto;right:calc(var(--G) + env(safe-area-inset-right))}
 #use{right:calc(var(--G) + env(safe-area-inset-right));bottom:calc(var(--G)*2 + var(--S) + env(safe-area-inset-bottom));width:var(--S);height:var(--S);background:rgba(60,120,255,.32)}
 #horn{right:calc(var(--G)*2 + var(--S) + env(safe-area-inset-right));bottom:calc(var(--G)*2 + var(--S) + env(safe-area-inset-bottom));width:calc(var(--S)*.6);height:calc(var(--S)*.6);font-size:12px}
 #fire{right:calc(var(--G)*3 + var(--S)*2 + env(safe-area-inset-right));bottom:calc(var(--G) + env(safe-area-inset-bottom));width:calc(var(--S)*.95);height:calc(var(--S)*.95);background:rgba(255,140,0,.34)}
+#drift{right:calc(var(--G)*2 + var(--S) + env(safe-area-inset-right));bottom:calc(var(--G)*3 + var(--S)*1.6 + env(safe-area-inset-bottom));width:calc(var(--S)*.6);height:calc(var(--S)*.6);font-size:12px;background:rgba(120,200,255,.3)}
+body.inroom #drift,body.inmini #drift{display:none}
 #wpn{right:calc(var(--G)*3 + var(--S)*2 + env(safe-area-inset-right));bottom:calc(var(--G)*2 + var(--S)*.95 + env(safe-area-inset-bottom));width:calc(var(--S)*.6);height:calc(var(--S)*.6);font-size:12px}
 #phone{top:calc(env(safe-area-inset-top) + 58px);right:12px;width:54px;height:54px;font-size:26px;background:rgba(40,40,60,.7)}
 #cog{top:calc(env(safe-area-inset-top) + 120px);right:12px;width:54px;height:54px;font-size:26px;background:rgba(40,40,60,.7)}
@@ -86,6 +88,7 @@ body.inlock #fire,body.inlock #use,body.inlock #stick,body.inlock #wheel{display
 <div class="b" id="use">AKTION</div>
 <div class="b" id="nit">NITRO</div>
 <div class="b" id="horn">HUPE</div>
+<div class="b" id="drift">DRIFT</div>
 <div class="b" id="fire">FEUER</div>
 <div class="b" id="wpn">WAFFE</div>
 <div class="b" id="radio">RADIO</div>
@@ -478,7 +481,7 @@ const ST = { m: 0, run: 0, kills: 0, wr: 0, earn: 0, miss: 0, jump: 0, stunts: 0
 let lastMoney = 300, curTer = null, terT = 30, bg = null, bank = null, photoReq = 0, noHud = false;
 // Einstellungen, Wetter, Speicherstand
 const S = { lefty: false, size: 1, auto: false, aim: true, rain: true, night: true, vib: true, drive: 'wheel', gangs: false };
-let nit = 1, drift = 0, rain = 0, rainT = 40, rainTarget = 0, fog = 0, fogTarget = 0, snow = 0, snowTarget = 0, mstreak = 0, flash = 0, bigMap = false, saveT = 15; const rings = [];
+let nit = 1, drift = 0, dscore = 0, dgrace = 0, rain = 0, rainT = 40, rainTarget = 0, fog = 0, fogTarget = 0, snow = 0, snowTarget = 0, mstreak = 0, flash = 0, bigMap = false, saveT = 15; const rings = [];
 function buzz(ms) { if (S.vib && navigator.vibrate) try { navigator.vibrate(ms); } catch (e) {} }
 function save() { try { localStorage.setItem('rc3', JSON.stringify({ m: money, o: owned.map(o => ({ ti: o.ti, up: o.up, col: o.col, st: o.st, ne: o.ne })), w: wp.map(w => ({ own: w.own, ammo: w.ammo })), s: S, st: ST, t: ter.map(t => t.own ? 1 : 0), iv: inv, lo: lastOwn, pl: pickLv, hr: heistReady, hb: heistBonus, hm: home, of: outfit, bt: boat ? { col: boat.col, mot: boat.mot || 0 } : null })); } catch (e) {} }
 function load() { try { const d = JSON.parse(localStorage.getItem('rc3') || 'null'); if (!d) return; money = d.m; d.w.forEach((w, i) => Object.assign(wp[i], w)); (d.o || []).forEach(o => owned.push({ ti: o.ti, up: Object.assign({ e: 0, t: 0, a: 0, n: 0, w: 0 }, o.up), col: o.col, st: o.st, ne: o.ne, car: null })); Object.assign(S, d.s || {}); Object.assign(ST, d.st || {}); (d.t || []).forEach((v, i) => { if (v && ter[i]) { ter[i].own = true; ter[i].str = 0; } }); if (d.iv) Object.assign(inv, d.iv); if (d.lo != null) lastOwn = d.lo; if (d.pl) pickLv = d.pl; if (d.hr != null) heistReady = d.hr; heistBonus = !!d.hb; home = d.hm || null; outfit = d.of || 0; boat = d.bt ? { col: d.bt.col, mot: d.bt.mot || 0, car: null } : null; lastMoney = money; } catch (e) {} }
@@ -603,7 +606,8 @@ function updCams() {
   const c = p.car; if (!c || c.t.boat || c.wreck || time < camCd) return;
   for (const sg of sigs) if (dist(c.x, c.y, sg.x, sg.y) < 75) {
     const hz = Math.abs(Math.cos(c.a)) > Math.abs(Math.sin(c.a)), red = lightState(hz) === 2 && dist(c.x, c.y, sg.x, sg.y) < 40;
-    if (sg.cam && (c.spd > 270 || (red && c.spd > 90))) { camCd = time + 8; const f = Math.min(money, red ? 100 : 150); money -= f; flash = .8; toast(`📸 BLITZER! ${red ? 'Rotlichtverstoß' : 'Zu schnell'} – Bußgeld -$${f}`, '#ffe14d', 3); tone(1500, .08, 'square', .1); return; }
+    const kmh = c.spd * .4;
+    if (sg.cam && (kmh > 50 || (red && c.spd > 90))) { camCd = time + 8; const f = Math.min(money, red ? 100 : kmh > 100 ? 70 : 50); money -= f; flash = .8; toast(`📸 BLITZER! ${red ? 'Rotlichtverstoß' : 'Tempo ' + Math.round(kmh) + ' km/h (erlaubt 50)'} – Bußgeld -$${f}`, '#ffe14d', 3); tone(1500, .08, 'square', .1); return; }
   }
 }
 function aiPlace(c) {
@@ -1040,7 +1044,7 @@ const coarse = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in windo
 document.addEventListener('pointerdown', e => { if (dead) { e.preventDefault(); e.stopPropagation(); if (dead.t > 1.6 && !dead.go) { dead.go = true; reviveNow(); } } }, true);
 addEventListener('keydown', e => { if (dead && dead.t > 1.6 && !dead.go && ['Space', 'Enter', 'KeyE'].includes(e.code)) { dead.go = true; reviveNow(); } });
 // ---------- Menüs: Läden, Garage, Handy ----------
-function inputsReset() { inp.gas = inp.brk = inp.fire = inp.horn = inp.nit = false; inp.sx = inp.sy = inp.wx = 0; inp.wt = false; $('knob').style.transform = ''; for (const b of ['gas', 'brk', 'fire', 'horn', 'nit']) $(b).classList.remove('on'); }
+function inputsReset() { inp.gas = inp.brk = inp.fire = inp.horn = inp.nit = false; inp.sx = inp.sy = inp.wx = 0; inp.wt = false; $('knob').style.transform = ''; inp.hb = false; for (const b of ['gas', 'brk', 'fire', 'horn', 'nit', 'drift']) $(b).classList.remove('on'); }
 function openMenu(m) { menu = m; $('menu').classList.toggle('phone', !!m.grid); inputsReset(); $('mT').textContent = m.t; $('menu').style.display = 'flex'; $('mMsg').textContent = ''; drawMenu(); }
 function closeMenu() { const m = menu; menu = null; $('menu').classList.remove('phone'); $('menu').style.display = 'none'; if (m && m.close) m.close(); }
 function drawMenu() {
@@ -1461,7 +1465,7 @@ function hold(id, on, off) {
   for (const n of ['pointerup', 'pointercancel', 'lostpointercapture']) e.addEventListener(n, () => { e.classList.remove('on'); off(); });
 }
 hold('gas', () => inp.gas = true, () => inp.gas = false); hold('brk', () => inp.brk = true, () => inp.brk = false);
-hold('horn', () => inp.horn = true, () => inp.horn = false); hold('fire', () => inp.fire = true, () => inp.fire = false);
+hold('horn', () => inp.horn = true, () => inp.horn = false); hold('drift', () => inp.hb = true, () => inp.hb = false); hold('fire', () => inp.fire = true, () => inp.fire = false);
 hold('use', () => { inp.use = true; inp.useHeld = true; }, () => { inp.useHeld = false; }); hold('wpn', () => inp.wpn = true, () => {});
 $('hot').addEventListener('pointerdown', e => { const b = e.target.closest('.hb'); if (!b) return; e.preventDefault(); initAudio(); if (started && !menu) useItem(b.dataset.k); });
 $('phone').addEventListener('pointerdown', e => { e.preventDefault(); initAudio(); if (started && !menu) openMenu(phoneMenu()); });
@@ -1513,14 +1517,15 @@ function update(dt) {
   updCarGuns(dt);
   const pc = p.car;
   if (pc) {                                                         // Auto steuern
-    const wheel = S.drive === 'wheel'; let thr = clamp((inp.gas ? 1 : 0) - (inp.brk ? 1 : 0) - ky + (!wheel && Math.abs(sy) > .45 ? -sy : 0), -1, 1); const hand = (inp.gas && inp.brk) || shift; if (hand) thr = 0;
+    const wheel = S.drive === 'wheel'; let thr = clamp((inp.gas ? 1 : 0) - (inp.brk ? 1 : 0) - ky + (!wheel && Math.abs(sy) > .45 ? -sy : 0), -1, 1); const hand = (inp.gas && inp.brk) || shift || inp.hb; if (hand && !inp.hb) thr = 0;
     if (S.auto && !hand && thr >= 0 && (wheel ? inp.wt : Math.hypot(sx, sy) > .25)) thr = 1;                          // Auto-Gas (Touch-Hilfe): Stick halten = Gas
     const boost = (inp.nit || k.KeyN) && nit > .03 && !hand && pc.spd > 20 && pc.up.n > 0; nit = boost ? Math.max(0, nit - .5 * dt) : Math.min(1, nit + .12 * dt);
     const tgt = wheel ? clamp(Math.sign(inp.wx) * Math.pow(Math.abs(inp.wx), 1.15) * 1.1 + kx, -1, 1) : clamp(Math.sign(sx) * Math.pow(Math.abs(sx), 1.25) * 1.3 + kx, -1, 1); steerSm += (tgt - steerSm) * Math.min(1, 12 * dt);   // weiches Lenken
     pc.pin = { thr: boost ? 1 : thr, steer: steerSm, hand, boost };
-    if (pc.sl > 110 && pc.spd > 140) drift += dt; else if (drift > 0) { ST.drift = Math.max(ST.drift, drift); if (drift > .8) { const b = Math.round(drift * 25); money += b; toast('DRIFT  +$' + b, '#7fd0ff', 1.2); } drift = 0; }   // Drift-Bonus
+    if (pc.sl > 110 && pc.spd > 140) { drift += dt; dgrace = .6; dscore += pc.spd * dt * .12 * (1 + Math.min(4, Math.floor(drift))); }
+    else if (drift > 0) { dgrace -= dt; if (dgrace <= 0) { ST.drift = Math.max(ST.drift, drift); if (drift > .6) { const b = Math.round(dscore), mu = 1 + Math.min(4, Math.floor(drift)); money += b; toast(`DRIFT ×${mu}  +$${b}`, '#7fd0ff', 1.8); tone(700, .1, 'square', .1); tone(1000, .12, 'square', .1, 0, .09); } drift = 0; dscore = 0; } }   // Drift-Punkte
   } else {                                                          // zu Fuß
-    if (!isWater(p.x, p.y)) p.sw = false; steerSm = 0; drift = 0; let mx = sx + kx, my = sy + ky, l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; l = 1; }
+    if (!isWater(p.x, p.y)) p.sw = false; steerSm = 0; drift = 0; dscore = 0; let mx = sx + kx, my = sy + ky, l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; l = 1; }
     p.sw = isWater(p.x, p.y); const sp = ((inp.gas || shift) ? 185 : 115) * l * (p.sw ? .5 : 1);
     if (l > .05) { p.a += wrap(Math.atan2(my, mx) - p.a) * Math.min(1, 14 * dt); p.ph += sp * dt * .12; }
     const dx = mx * sp * dt, dy = my * sp * dt; if (walkOK(p.x + dx, p.y)) p.x += dx; if (walkOK(p.x, p.y + dy)) p.y += dy;
@@ -1576,7 +1581,7 @@ function update(dt) {
   document.body.classList.toggle('drv', !!p.car); document.body.classList.toggle('wheel', !!p.car && S.drive === 'wheel');
   const lbl = p.car ? 'AUS-<br>STEIGEN' : (!p.sw && tgts.some(q => dist(p.x, p.y, q.x, q.y) < 38)) ? 'AUF-<br>BRECHEN' : (npc && dist(p.x, p.y, npc.x, npc.y) < 62) ? 'REDEN' : (nearCar() || tramStops.some(q => dist(p.x, p.y, q.px, q.py) < 120)) ? 'EIN-<br>STEIGEN' : 'AKTION'; if (lbl !== useLbl) { useLbl = lbl; $('use').innerHTML = lbl; }
   { const veh = !!p.car, hasNit = veh && p.car.up && p.car.up.n > 0, nW = wp.filter(w => w.own).length;
-    for (const [id, off] of [['brk', !veh], ['horn', !veh], ['radio', !veh], ['nit', !hasNit], ['wpn', nW < 2]]) $(id).classList.toggle('off', off);
+    for (const [id, off] of [['brk', !veh], ['drift', !veh], ['horn', !veh], ['radio', !veh], ['nit', !hasNit], ['wpn', nW < 2]]) $(id).classList.toggle('off', off);
     const gl = veh ? 'GAS' : 'SPRINT'; if (gl !== gasLbl) { gasLbl = gl; $('gas').textContent = gl; } }
   // Wetter: Regen, Gewitter; Qualm an kaputten Autos; Autosave; Radio
   rainT -= dt; if (rainT <= 0) { rainT = rnd(50, 120); const r = Math.random(); rainTarget = 0; fogTarget = 0; snowTarget = 0;
@@ -1814,6 +1819,7 @@ function drawBigMap() {           // große Karte (Tipp auf die Minikarte)
   const P0 = P(); dot(P0.x, P0.y, '#fff', 8); text('KARTE  –  tippen zum Schließen', vw / 2, oy - 16, 16, '#ffd200');
 }
 function hud() {
+  if (drift > .3 && dscore > 0) { const uu = Math.max(.8, Math.min(vw, vh) / 700); text(`DRIFT ×${1 + Math.min(4, Math.floor(drift))}`, vw / 2, 78 * uu, 26 * uu, '#7fd0ff'); text('+$' + Math.round(dscore), vw / 2, 106 * uu, 20 * uu, '#fff'); }
   const u = Math.max(.8, Math.min(vw, vh) / 700), ms = clamp(Math.min(vw, vh) * .26, 96, 160), mx = 14, my = 14, c = p.car, P0 = P(), hp = c ? c.hp / c.hpm * 100 : p.hp;
   if (hp < 35) vig('rgba(220,20,20,A)', .3 + .2 * Math.sin(time * 6)); else if (stars >= 3) vig(Math.floor(time * 4) % 2 ? 'rgba(220,30,30,A)' : 'rgba(40,80,255,A)', .22);
   if (bigMap) { drawBigMap(); return; }
