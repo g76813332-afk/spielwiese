@@ -489,6 +489,7 @@ function load() { try { const d = JSON.parse(localStorage.getItem('rc3') || 'nul
 function applyS() { document.body.classList.toggle('lefty', S.lefty); document.documentElement.style.setProperty('--k', S.size); }
 function toast(txt, col, sec) { toastTxt = txt; toastCol = col || '#fff'; toastT = sec || 2.5; }
 function hurt(d) { if (p.armor > 0) { const a = Math.min(p.armor, d); p.armor -= a; d -= a; } p.hp -= d; }
+const copNear = r => { const T = P(); return cars.some(c => c.t.police && !c.wreck && dist(c.x, c.y, T.x, T.y) < r) || peds.some(q => q.cop && !q.dead && dist(q.x, q.y, T.x, T.y) < r); };
 function addHeat(v) { heat = Math.min(100, heat + v); }
 
 function applyUp(c) {                              // Tuning-Stufen in Werte umrechnen
@@ -577,7 +578,7 @@ function hitFx(A, B, sp, x, y) {
   dmgCar(A, Math.max(0, sp - 100) * .13 * B.t.m / A.t.m); dmgCar(B, Math.max(0, sp - 100) * .13 * A.t.m / B.t.m);
   if (dist(x, y, P().x, P().y) < 600) crashSnd(Math.min(1, sp / 300));
   const other = A === p.car ? B : B === p.car ? A : null;
-  if (other) { other.lastBy = 'p'; shake = Math.max(shake, Math.min(6, sp / 50)); if (other.t.police) addHeat(25); else if (other.drv && sp > 110) addHeat(7); }
+  if (other) { other.lastBy = 'p'; shake = Math.max(shake, Math.min(6, sp / 50)); if (other.t.police) addHeat(25); else if (other.drv && sp > 190 && copNear(520)) addHeat(7); }
 }
 
 // ---------- KI: Verkehr folgt Fahrspuren (Rechtsverkehr) ----------
@@ -988,7 +989,7 @@ function burgleBtn() {
   if (t.lv > pickLv + 6) { toast(`Dein Dietrich (Stufe ${pickLv}) ist zu schwach – mindestens Stufe ${t.lv - 6} nötig (Kiosk)`, '#ff0', 3); return true; }
   inputsReset();
   startLock(t.lv, ok => {
-    if (ok) { const v = Math.round((t.lv * t.lv * 40 + t.lv * 150) * rnd(.7, 1.3)); money += v; t.cd = ST.time + 600; ST.miss++; toast(`EINBRUCH GEGLÜCKT  +$${v}`, '#4f4', 3); jingle(true); if (Math.random() < .25) { const it = pick(ITEMS); inv[it.k] = Math.min(9, inv[it.k] + 1); renderHot(); toast(`+$${v}  und ${it.ic} ${it.n}`, '#4f4', 3); } addHeat(5 + t.lv * .8); if (cars.some(c => c.t.police && !c.wreck && dist(c.x, c.y, p.x, p.y) < 450)) addHeat(30); }
+    if (ok) { const v = Math.round((t.lv * t.lv * 40 + t.lv * 150) * rnd(.7, 1.3)); money += v; t.cd = ST.time + 600; ST.miss++; toast(`EINBRUCH GEGLÜCKT  +$${v}`, '#4f4', 3); jingle(true); if (Math.random() < .25) { const it = pick(ITEMS); inv[it.k] = Math.min(9, inv[it.k] + 1); renderHot(); toast(`+$${v}  und ${it.ic} ${it.n}`, '#4f4', 3); } if (copNear(520)) addHeat(5 + t.lv * .8); if (cars.some(c => c.t.police && !c.wreck && dist(c.x, c.y, p.x, p.y) < 450)) addHeat(30); }
     else { t.wait = ST.time + 10 + (t.lv - 1) * 31; toast('Aufbruch gescheitert – Schloss gesperrt für ' + fmtT(t.wait - ST.time), '#f66', 3); if (t.alarm) { addHeat(Math.random() < .5 ? 22 : 42); toast('ALARM! Die Polizei ist gerufen!', '#f33', 3); tone(900, .6, 'square', .15, 500); } }
   }, { alarm: t.alarm });
   return true;
@@ -999,9 +1000,17 @@ function npcBtn() {
     act: a => { if (a === 'acc') { heistBonus = true; save(); return 'Abgemacht! Der Bonus gilt beim nächsten Überfall.'; } } });
   return true;
 }
+const pedNear = () => !p.car && peds.find(q => !q.dead && !q.cop && !q.chaseT && time > (q.robbed || 0) && dist(q.x, q.y, p.x, p.y) < 36);
+function robBtn() {
+  const q = pedNear(); if (!q) return false; q.robbed = time + 90;
+  const v = Math.round(Math.max(q.cash || 0, rint(15, 80)) * (q.rich ? 3 : 1) * rnd(.8, 1.6)); money += v; ST.robs = (ST.robs || 0) + 1; q.flee = 5; q.a = Math.atan2(q.y - p.y, q.x - p.x); q.sp = 135;
+  if (q.gun || q.gang != null) q.prov = 10;
+  if (copNear(500)) { addHeat(14); toast(`Ausgeraubt +$${v} – ein Polizist hat's gesehen!`, '#ff8', 2.2); } else toast(`Ausgeraubt  +$${v}`, '#7dff7d', 1.6);
+  tone(500, .05, 'square', .1); tone(800, .07, 'square', .1, 0, .05); return true;
+}
 function useBtn() {
   if (p.car) { exitCar(); return; }
-  if (boardTram()) return; if (burgleBtn() || npcBtn()) return;
+  if (boardTram()) return; if (burgleBtn() || npcBtn() || (!nearCar() && robBtn())) return;
   const b = nearCar(); if (!b) return;
   if (b.spd > 250) { toast('Zu schnell zum Einsteigen!', '#ff0', 1.2); return; }
   if (b.drv === 'boat') { b.ai = null; }
@@ -1033,6 +1042,7 @@ function reviveNow() {                            // nach dem Tod: Aufwachen im 
 function respawn() {
   if (p.car) { p.car.drv = null; p.car = null; }
   const h = hosp || ZS; p.x = h.x; p.y = h.y; p.hp = 100; p.armor = 0; chaos = 0; jobSt = null; heat = 0; stars = 0; bust = 0; mission = null; mini = null; shots.length = 0; heli = null; lastShotT = -99; spikes.length = 0; inside = null; ride = null;
+  for (const sh of shops) sh.empty = 0; for (const t of tgts) { t.cd = 0; t.wait = 0; } for (const q of peds) q.robbed = 0;
   for (const q of peds) { q.prov = 0; q.flee = 0; }                                            // Gangs und Passanten beruhigen sich
   for (const c of cars) { if (c.drv === 'blk') c.gone = true; if (c.t.police && !c.wreck && c.drv === 'cop') { c.mode = 'patrol'; aiPlace(c); } }
   for (const c of swat) if (cars.includes(c)) c.gone = true;
@@ -1157,7 +1167,7 @@ const ACH = [
   ['drift', 'Drift-König', '6 Sekunden am Stück driften', () => ST.drift >= 6, 1500], ['jump', 'Stuntman', '100 m weit springen', () => ST.jump >= 100, 1000], ['wr', 'Schrotthändler', '20 Autos zerstören', () => ST.wr >= 20, 1000],
   ['pick', 'Dietrich-Meister', 'Dietrich Stufe 10', () => pickLv >= 10, 2000], ['train', 'Zugräuber', 'den Geldzug überfallen', () => heistReady > 0, 5000],
   ['fine', 'Blitzer-Opfer', '3 Bußgelder kassieren', () => (ST.fines || 0) >= 3, 100], ['photo', 'Fotograf', 'ein Foto machen', () => ST.photos >= 1, 100], ['truck', 'Geldtransporter', 'einen Geldtransporter knacken', () => (ST.trucks || 0) >= 1, 2000],
-  ['burg', 'Einbrecher', 'einen Einbruch erfolgreich abschließen', () => (ST.burg || 0) >= 1, 500], ['safe', 'Tresorknacker', 'einen versteckten Tresor knacken', () => (ST.safes || 0) >= 1, 2500]
+  ['rob', 'Taschendieb', '5 Passanten ausrauben', () => (ST.robs || 0) >= 5, 300], ['burg', 'Einbrecher', 'einen Einbruch erfolgreich abschließen', () => (ST.burg || 0) >= 1, 500], ['safe', 'Tresorknacker', 'einen versteckten Tresor knacken', () => (ST.safes || 0) >= 1, 2500]
 ];
 const achDone = () => (ST.ach && typeof ST.ach === 'object') ? ST.ach : (ST.ach = {});
 let achT = 3, ctT = 90;
@@ -1611,9 +1621,8 @@ function update(dt) {
   for (let i = cash.length - 1; i >= 0; i--) { const q = cash[i]; q.t -= dt; if (dist(q.x, q.y, PP.x, PP.y) < 22) { money += q.v; tone(1300, .05, 'square', .09); tone(1700, .06, 'square', .09, 0, .05); cash.splice(i, 1); } else if (q.t <= 0) cash.splice(i, 1); }
   // Fahndung
   const cops = cars.filter(c => c.t.police && !c.wreck && c.drv !== 'p');
-  if (p.car && p.car.spd > 340 && cops.some(c => dist(c.x, c.y, PP.x, PP.y) < 450)) addHeat(9 * dt);
-  const near = cops.some(c => c.mode === 'pursue' && dist(c.x, c.y, PP.x, PP.y) < 420);
-  heat = Math.max(0, heat - (near ? .4 : 5) * dt); stars = heat <= 0 ? 0 : Math.min(5, Math.ceil(heat / 20)); if (stars >= 5 && heat >= 90 && chaos >= 55) stars = 6; chaos = Math.max(0, chaos - .04 * dt);
+  const near = cops.some(c => c.mode === 'pursue' && dist(c.x, c.y, PP.x, PP.y) < 300);
+  heat = Math.max(0, heat - (near ? 1.6 : 5) * dt); stars = heat <= 0 ? 0 : Math.min(5, Math.ceil(heat / 20)); if (stars >= 5 && heat >= 90 && chaos >= 55) stars = 6; chaos = Math.max(0, chaos - .04 * dt);
   if (stars > 0 && cops.some(c => c.mode === 'pursue' && dist(c.x, c.y, PP.x, PP.y) < 55) && (p.car ? p.car.spd : 0) < 70) bust += dt; else bust = Math.max(0, bust - 1.5 * dt);
   if (bust > 2.2) busted();
   updMission(dt);
@@ -1627,7 +1636,7 @@ function update(dt) {
   const sf = p.car ? clamp(p.car.spd / 480, 0, 1) : 0, tz = Math.min(vw, vh) / (p.car ? 600 : 520) * (1 - .22 * sf) * (p.car && p.car.pin && p.car.pin.boost ? .92 : 1); zoom += (tz - zoom) * (1 - Math.exp(-3 * dt));
   // Kontext-Beschriftung der Buttons
   document.body.classList.toggle('drv', !!p.car); document.body.classList.toggle('wheel', !!p.car && S.drive === 'wheel');
-  const lbl = p.car ? 'AUS-<br>STEIGEN' : (!p.sw && tgts.some(q => dist(p.x, p.y, q.x, q.y) < 38)) ? 'AUF-<br>BRECHEN' : (npc && dist(p.x, p.y, npc.x, npc.y) < 62) ? 'REDEN' : (nearCar() || tramStops.some(q => dist(p.x, p.y, q.px, q.py) < 120)) ? 'EIN-<br>STEIGEN' : 'AKTION'; if (lbl !== useLbl) { useLbl = lbl; $('use').innerHTML = lbl; }
+  const lbl = p.car ? 'AUS-<br>STEIGEN' : (!p.sw && tgts.some(q => dist(p.x, p.y, q.x, q.y) < 38)) ? 'AUF-<br>BRECHEN' : (npc && dist(p.x, p.y, npc.x, npc.y) < 62) ? 'REDEN' : (nearCar() || tramStops.some(q => dist(p.x, p.y, q.px, q.py) < 120)) ? 'EIN-<br>STEIGEN' : pedNear() ? 'AUS-<br>RAUBEN' : 'AKTION'; if (lbl !== useLbl) { useLbl = lbl; $('use').innerHTML = lbl; }
   { const veh = !!p.car, hasNit = veh && p.car.up && p.car.up.n > 0, nW = wp.filter(w => w.own).length;
     for (const [id, off] of [['brk', !veh], ['drift', !veh], ['horn', !veh], ['radio', !veh], ['nit', !hasNit], ['wpn', nW < 2]]) $(id).classList.toggle('off', off);
     const gl = veh ? 'GAS' : 'SPRINT'; if (gl !== gasLbl) { gasLbl = gl; $('gas').textContent = gl; } }
@@ -1913,7 +1922,8 @@ function hud() {
 }
 
 // ---------- Läden in Gebäuden: Fassade, begehbarer Innenraum, Bahn ----------
-const RW = 504, RH = 324, tramStops = [];
+const RW0 = 504, RW = 640, RH = 420, RX = (RW - RW0) / 2, tramStops = [];
+const roomSol = R => R.solids.map(q => [q[0] + RX, q[1], q[2], q[3]]).concat([[16, 270, 34, RH - 350], [RW - 50, 270, 34, RH - 350]]);
 let inside = null, ride = null;
 function drawIcon(k, cx, cy, sc) {
   if (k === 'sup' || k === 'estate' || k === 'home' || k === 'villa') { ctx.save(); ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
@@ -1949,12 +1959,13 @@ function drawIcon(k, cx, cy, sc) {
   ctx.restore();
 }
 function drawShopfront(s) {
-  const bd = s.bd, ax = DX[bd], ay = DY[bd], aw = 72, pul = (Math.sin(time * 4) + 1) / 2;
+  const bd = s.bd, ax = DX[bd], ay = DY[bd], aw = 84, pul = (Math.sin(time * 4) + 1) / 2;
   ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(bd * Math.PI / 2);                  // lokal: +x zeigt ins Gebäude
-  ctx.fillStyle = 'rgba(0,0,0,.25)'; rr(-4, -aw / 2 + 4, 36, aw, 8); ctx.fill();
-  ctx.save(); rr(-8, -aw / 2, 36, aw, 8); ctx.clip(); for (let i = 0; i < 6; i++) { ctx.fillStyle = i % 2 ? '#f6f2e6' : s.col; ctx.fillRect(-8, -aw / 2 + i * aw / 6, 36, aw / 6 + .5); } ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(18, -aw / 2, 10, aw); ctx.restore();
-  rr(-8, -aw / 2, 36, aw, 8); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.stroke();
-  ctx.fillStyle = '#1c2433'; rr(16, -12, 14, 24, 3); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = 'rgba(160,210,255,.4)'; ctx.fillRect(18, -10, 3, 20); ctx.fillStyle = '#ffd23a'; ctx.fillRect(20, 0, 2, 2.5);
+  ctx.fillStyle = 'rgba(0,0,0,.25)'; rr(-4, -aw / 2 + 4, 42, aw, 8); ctx.fill();
+  if (s.sty == null) s.sty = Math.abs(Math.floor(s.x * 3 + s.y * 5)) % 4;
+  ctx.save(); rr(-8, -aw / 2, 42, aw, 8); ctx.clip(); for (let i = 0; i < 6; i++) { const sl = aw / 6; if (s.sty === 2) { for (let j = 0; j < 3; j++) { ctx.fillStyle = (i + j) % 2 ? '#f6f2e6' : s.col; ctx.fillRect(-8 + j * 14, -aw / 2 + i * sl, 14.5, sl + .5); } } else { ctx.fillStyle = s.sty === 1 ? (i < 3 ? s.col : shade(s.col, -.25)) : s.sty === 3 ? shade(s.col, (i - 2.5) * .08) : (i % 2 ? '#f6f2e6' : s.col); ctx.fillRect(-8, -aw / 2 + i * sl, 42, sl + .5); } } ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(22, -aw / 2, 10, aw); ctx.restore();
+  rr(-8, -aw / 2, 42, aw, 8); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.stroke();
+  ctx.fillStyle = ['#1c2433', '#3a1f1f', '#1f3a2a', '#2a2a3a'][s.sty]; rr(18, -12, 14, 24, 3); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.fillStyle = 'rgba(160,210,255,.4)'; ctx.fillRect(18, -10, 3, 20); ctx.fillStyle = '#ffd23a'; ctx.fillRect(20, 0, 2, 2.5);
   ctx.restore();
   const cx = s.x + ax * 78, cy = s.y + ay * 78;                                          // Schild auf dem Dach (Symbol oben drauf)
   ctx.fillStyle = 'rgba(0,0,0,.28)'; rr(cx - 43 + 6, cy - 33 + 7, 86, 68, 12); ctx.fill();
@@ -1976,8 +1987,8 @@ function drawStopShelter(q) {
 function roomBase(floorA, floorB, wall) {
   for (let y = 0; y < RH; y += 36) for (let x = 0; x < RW; x += 36) { ctx.fillStyle = ((x + y) / 36) % 2 ? floorA : floorB; ctx.fillRect(x, y, 36, 36); }
   const gr = ctx.createLinearGradient(0, 0, 0, 62); gr.addColorStop(0, shade(wall, -.35)); gr.addColorStop(1, wall); ctx.fillStyle = gr; ctx.fillRect(0, 0, RW, 62); ctx.fillStyle = shade(wall, -.5); ctx.fillRect(0, 56, RW, 6);
-  ctx.fillStyle = shade(wall, -.25); ctx.fillRect(0, 0, 14, RH); ctx.fillRect(RW - 14, 0, 14, RH); ctx.fillStyle = '#2a2a32'; ctx.fillRect(0, RH - 6, 214, 6); ctx.fillRect(290, RH - 6, RW - 290, 6);
-  ctx.fillStyle = '#5a1f1f'; rr(222, RH - 18, 60, 18, 4); ctx.fill(); ctx.fillStyle = '#ffd23a'; ctx.beginPath(); ctx.moveTo(252, RH - 4); ctx.lineTo(244, RH - 13); ctx.lineTo(260, RH - 13); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = shade(wall, -.25); ctx.fillRect(0, 0, 14, RH); ctx.fillRect(RW - 14, 0, 14, RH); ctx.fillStyle = '#2a2a32'; ctx.fillRect(0, RH - 6, RW / 2 - 38, 6); ctx.fillRect(RW / 2 + 38, RH - 6, RW / 2 - 38, 6);
+  ctx.fillStyle = '#5a1f1f'; rr(RW / 2 - 30, RH - 18, 60, 18, 4); ctx.fill(); ctx.fillStyle = '#ffd23a'; ctx.beginPath(); ctx.moveTo(RW / 2, RH - 4); ctx.lineTo(RW / 2 - 8, RH - 13); ctx.lineTo(RW / 2 + 8, RH - 13); ctx.closePath(); ctx.fill();
 }
 function counter(col) {
   ctx.fillStyle = 'rgba(0,0,0,.28)'; rr(124, 92, 264, 34, 8); ctx.fill();
@@ -2043,7 +2054,7 @@ function enterShop(sh) {
   if (sh.lv) { burDoor(sh); return; }
   if (sh.k === 'villa' && !(home && home.villa)) { shopLock = sh; toast('Ferienvilla zu verkaufen – im Immobilienbüro ($80.000)', '#ff0', 2.5); return; }
   if (sh.k === 'home' && !home) { shopLock = sh; toast('Haus zu verkaufen – im Immobilienbüro ($25.000)', '#ff0', 2.5); return; }
-  if (shopClosed(sh)) { shopLock = sh; toast('Geschlossen – öffnet am Morgen (Supermarkt: 24 h)', '#f66', 2.5); return; }
+  if (shopClosed(sh)) { shopBreak(sh); return; }
   enterShop0(sh);
 }
 function enterShop0(sh) {
@@ -2074,6 +2085,15 @@ function burDoorMenu(sh) {
       { a: 'go', t: '🔦 Einbrechen (leise schleichen, Verstecke nutzen)', off: ST.time < (sh.empty || 0) },
       { a: 'no', t: 'Lieber nicht' }], act: a => { if (a === 'go') { closeMenu(); enterBur(sh); } else if (a === 'no') closeMenu(); } };
 }
+function shopBreak(sh) {
+  const lv = sh.k === 'gun' ? 10 : sh.k === 'estate' ? 9 : 7, m = { t: '🔒 ' + sh.n + ' – GESCHLOSSEN', rows: () => [
+      { a: 'i', t: 'Öffnet am Morgen – oder du brichst ein (Nachtwächter, Alarm möglich).', off: true },
+      { a: 'go', t: `🔦 Aufbrechen (Dietrich Stufe ${Math.max(1, lv - 6)} nötig)`, off: pickLv < lv - 6 || ST.time < (sh.empty || 0) },
+      { a: 'no', t: 'Weggehen' }],
+    act: a => { if (a === 'no') { closeMenu(); return; } if (a !== 'go') return; closeMenu();
+      startLock(lv, ok => { if (ok) { sh.blv = lv >= 9 ? 2 : 1; enterBur(sh); } else { sh.empty = ST.time + 120; addHeat(25); toast('Aufbruch gescheitert – ALARM! Die Polizei ist gerufen!', '#f33', 3); tone(900, .6, 'square', .15, 500); } }, { alarm: true }); } };
+  shopLock = sh; m.close = () => { shopLock = sh; }; openMenu(m);
+}
 function burDoor(sh) {
   if (ST.time < (sh.empty || 0)) { shopLock = sh; toast('Hier war gerade jemand – später wiederkommen', '#f66', 2.5); return; }
   const m = burDoorMenu(sh); m.close = () => { shopLock = sh; }; openMenu(m);
@@ -2090,7 +2110,7 @@ function burDoor(sh) {
   }, true);
 })();
 function burGen(sh) {
-  const lv = sh.lv, D = BUR[lv], sd = burSeed(sh) + Math.floor(Math.random() * 1000), R = burRng(sd), C = D.c, Rr = D.r, GW = C * BRW + 1, GH = Rr * BRH + 2;
+  const lv = sh.lv || sh.blv, D = BUR[lv], sd = burSeed(sh) + Math.floor(Math.random() * 1000), R = burRng(sd), C = D.c, Rr = D.r, GW = C * BRW + 1, GH = Rr * BRH + 2;
   const G = new Uint8Array(GW * GH), B = { lv, D, sh, GW, GH, G, furn: [], loot: [], hides: [], paints: [], guards: [], rooms: [], got: 0, al: 0, alarm: false, hid: null, safeOpen: false, t: 0, msg: '', msgT: 0, caught: 0, run: false, hint: '' };
   for (let y = 0; y <= Rr * BRH; y++) for (let x = 0; x < GW; x++) if (x % BRW === 0 || y % BRH === 0) G[y * GW + x] = 1;
   for (let c = 1; c < C; c++) for (let r = 0; r < Rr; r++) for (let k = 4; k <= 6; k++) G[(r * BRH + k) * GW + c * BRW] = 0;
@@ -2100,7 +2120,7 @@ function burGen(sh) {
   const lootAt = (x, y) => { const E = ['💵', '💎', '⌚', '💍', '💻', '💰']; B.loot.push({ x: (x + .5) * BT, y: (y + .5) * BT, v: Math.max(5, Math.round((25 + R() * 70) * D.lm / 5) * 5), e: E[Math.floor(R() * E.length)], got: false }); };
   const QU = [[1, 1, 5, 3], [9, 1, 6, 3], [1, 7, 5, 4], [9, 7, 6, 4]];
   for (let r = 0; r < Rr; r++) for (let c = 0; c < C; c++) {
-    const ox = c * BRW, oy = r * BRH, ty = ['hide', 'table', R() < .5 ? 'bed' : 'desk', R() < .5 ? 'sofa' : 'bed']; B.rooms.push({ c, r, th: (c + 2 * r) % 4 });
+    const ox = c * BRW, oy = r * BRH, ty = sh.lv ? ['hide', 'table', R() < .5 ? 'bed' : 'desk', R() < .5 ? 'sofa' : 'bed'] : ['hide', 'table', 'desk', R() < .5 ? 'table' : 'desk']; B.rooms.push({ c, r, th: (c + 2 * r) % 4 });
     for (let i = ty.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [ty[i], ty[j]] = [ty[j], ty[i]]; }
     QU.forEach(([qx, qy, qw, qh], qi) => {
       const t = ty[qi], X = ox + qx, Y = oy + qy, top = qi < 2, yy = top ? Y : Y + 1;
@@ -2194,7 +2214,7 @@ function updBur(dt) {
 function exitBur(caught) {
   const I = inside, B = I.bur, sh = I.sh; inputsReset(); let msg;
   if (caught) { const f = Math.min(money, 100 * B.lv); money -= f; addHeat(15 + 15 * B.lv); msg = `ERWISCHT! Beute weg, Strafe -$${f}`; }
-  else { if (B.got > 0) { money += B.got; ST.burg = (ST.burg || 0) + 1; msg = `Entkommen mit $${B.got}!`; jingle(true); } else msg = 'Du bist wieder draußen.'; if (B.alarm) addHeat(8 + 8 * B.lv); }
+  else { if (B.got > 0) { money += B.got; ST.burg = (ST.burg || 0) + 1; msg = `Entkommen mit $${B.got}!`; jingle(true); } else msg = 'Du bist wieder draußen.'; }
   if (B.got > 0 || caught) sh.empty = ST.time + 600;
   tone(880, .1, 'sine', .1); tone(660, .12, 'sine', .1, 0, .1); save();
   fadeTo(() => { inside = null; p.x = sh.x + DX[sh.dir] * 26; p.y = sh.y + DY[sh.dir] * 26; if (!footFree(p.x, p.y)) { p.x = sh.x; p.y = sh.y; } shopLock = sh; camX = p.x; camY = p.y; toast(msg, caught ? '#f55' : '#ffd200', 3.2); });
@@ -2255,12 +2275,18 @@ function renderBur() {
   d.fillStyle = lg(7.5 * BT, D.r * BRH * BT + 10, 46, .6, 0); d.beginPath(); d.arc(7.5 * BT, D.r * BRH * BT + 10, 46, 0, TAU); d.fill();
   d.restore(); ctx.restore(); ctx.drawImage(burDk, 0, 0, vw, vh);
   // Oberflaeche
-  panel(vw / 2 - 150 * u, 6 * u, 300 * u, 40 * u); text(`🔦 ${D.n} · STUFE ${B.lv}`, vw / 2, 19 * u, 14 * u, '#fff'); text('Tasche: $' + B.got, vw / 2, 37 * u, 16 * u, '#7dff7d');
+  panel(vw / 2 - 150 * u, 6 * u, 300 * u, 40 * u); text(`🔦 ${B.sh.lv ? D.n : B.sh.n + ' (Einbruch)'} · STUFE ${B.lv}`, vw / 2, 19 * u, 14 * u, '#fff'); text('Tasche: $' + B.got, vw / 2, 37 * u, 16 * u, '#7dff7d');
   const bw = 150 * u; ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(vw / 2 - bw / 2, 52 * u, bw, 9 * u); ctx.fillStyle = B.al >= 1 ? '#ff3030' : B.al > .45 ? '#ff9a2a' : '#ffd23a'; ctx.fillRect(vw / 2 - bw / 2, 52 * u, bw * B.al, 9 * u); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeRect(vw / 2 - bw / 2, 52 * u, bw, 9 * u);
   text(B.hid ? 'VERSTECKT – unsichtbar' : B.al > .05 ? 'ENTDECKUNGS-GEFAHR' : 'unentdeckt', vw / 2, 72 * u, 11 * u, B.hid ? '#7fd0ff' : '#ddd');
   if (B.hint) text('AKTION: ' + B.hint, vw / 2, vh - 90 * u, 17 * u, '#ffe14d');
   if (B.msgT > 0) { ctx.globalAlpha = Math.min(1, B.msgT * 2); text(B.msg, vw / 2, vh * .3, 22 * u, B.caught > 0 ? '#ff5555' : '#fff'); ctx.globalAlpha = 1; }
   if (toastT > 0) { ctx.globalAlpha = Math.min(1, toastT * 2); text(toastTxt, vw / 2, vh * .22, 22 * u, toastCol); ctx.globalAlpha = 1; }
+}
+function roomExtra(sty, sd) {
+  const R2 = burRng(sd + 7), col = ['#8a2a2a', '#2a5a8a', '#2a7a4a', '#7a5a2a'][sty];
+  ctx.fillStyle = hexA(col, .35); rr(RW / 2 - 120 + (sty % 2) * 20, 236, 220 - (sty % 2) * 40, 70, 16); ctx.fill(); ctx.strokeStyle = hexA(col, .7); ctx.lineWidth = 2; ctx.stroke();
+  for (const x of [16, RW - 50]) { ctx.fillStyle = 'rgba(0,0,0,.25)'; rr(x + 3, 273, 34, RH - 350, 4); ctx.fill(); ctx.fillStyle = '#5a4630'; rr(x, 270, 34, RH - 350, 4); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke(); for (let j = 0; j < 3; j++) { ctx.fillStyle = ['#c0392b', '#2e7dd1', '#e8a020', '#3a8a4a', '#c36bd6'][Math.floor(R2() * 5)]; ctx.fillRect(x + 4, 277 + j * 20, 26, 12); } }
+  const pl = [[78, 300], [RW - 78, 300], [RW / 2 - 160, 346], [RW / 2 + 160, 346]]; for (let i = 0; i < pl.length; i++) if ((sd >> i) % 2 === 0 || i < 2) { const [x, y] = pl[i]; ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(x + 3, y + 10, 12, 5, 0, 0, TAU); ctx.fill(); ctx.fillStyle = '#8a4a2a'; rr(x - 8, y, 16, 12, 3); ctx.fill(); ctx.fillStyle = '#2f9a4a'; for (const [dx, dy, r] of [[0, -8, 9], [-7, -3, 7], [7, -3, 7]]) { ctx.beginPath(); ctx.arc(x + dx, y + dy, r, 0, TAU); ctx.fill(); } }
 }
 function exitShop() {
   const sh = inside.sh; inputsReset(); tone(880, .1, 'sine', .1); tone(660, .12, 'sine', .1, 0, .1);
@@ -2269,12 +2295,17 @@ function exitShop() {
 function updInside(dt) {
   if (inside.bur) { updBur(dt); return; }
   const I = inside, R = ROOM[I.sh.k] || ROOM.item; time += dt; I.t += dt; if (toastT > 0) toastT -= dt;
+  if (stars > 0) {
+    heat = Math.max(0, heat - 2.5 * dt); I.copT = (I.copT || 0) + dt;
+    if (!I.cop && I.copT > Math.max(3, 10 - stars * 1.4)) { I.cop = { x: RW / 2, y: RH - 14, a: -Math.PI / 2, ph: 0 }; toast('Die Polizei kommt herein!', '#6a9aff', 2.2); tone(700, .12, 'square', .12); tone(560, .12, 'square', .12, 0, .12); }
+  } else { I.copT = 0; I.cop = null; }
+  if (I.cop) { const c = I.cop, d = dist(c.x, c.y, I.x, I.y); c.a = Math.atan2(I.y - c.y, I.x - c.x); c.x += Math.cos(c.a) * 72 * dt; c.y += Math.sin(c.a) * 72 * dt; c.ph += dt * 7; if (d < 17) { busted(); return; } }
   const k = keys, kx = (k.ArrowRight || k.KeyD ? 1 : 0) - (k.ArrowLeft || k.KeyA ? 1 : 0), ky = (k.ArrowDown || k.KeyS ? 1 : 0) - (k.ArrowUp || k.KeyW ? 1 : 0);
   let mx = (Math.abs(inp.sx) < .12 ? 0 : inp.sx) + kx, my = (Math.abs(inp.sy) < .12 ? 0 : inp.sy) + ky, l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; l = 1; }
-  const sp = ((inp.gas || k.ShiftLeft) ? 190 : 125) * l, free = (x, y) => x > 24 && x < RW - 24 && y > 66 && y < RH + 6 && !R.solids.some(q => x > q[0] - 8 && x < q[0] + q[2] + 8 && y > q[1] - 8 && y < q[1] + q[3] + 8);
+  const sp = ((inp.gas || k.ShiftLeft) ? 190 : 125) * l, free = (x, y) => x > 24 && x < RW - 24 && y > 66 && y < RH + 6 && !roomSol(R).some(q => x > q[0] - 8 && x < q[0] + q[2] + 8 && y > q[1] - 8 && y < q[1] + q[3] + 8);
   if (l > .05) { I.a += wrap(Math.atan2(my, mx) - I.a) * Math.min(1, 14 * dt); I.ph += sp * dt * .1; }
   const dx = mx * sp * dt, dy = my * sp * dt; if (free(I.x + dx, I.y)) I.x += dx; if (free(I.x, I.y + dy)) I.y += dy;
-  const spot = R.spot || [252, 142]; const ds = dist(I.x, I.y, spot[0], spot[1]); if (I.lock && ds > 70) I.lock = false;
+  const spot = [(R.spot || [252, 142])[0] + RX, (R.spot || [252, 142])[1]]; const ds = dist(I.x, I.y, spot[0], spot[1]); if (I.lock && ds > 70) I.lock = false;
   if (inp.use) { inp.use = false; if (I.y > RH - 70 && Math.abs(I.x - RW / 2) < 60) { exitShop(); return; } if (ds < 60 && !menu) { openMenu(I.sh.menu()); menu.close = () => { I.lock = true; }; return; } }
   if (ds < 34 && !I.lock && !menu) { const m = I.sh.menu(); m.close = () => { I.lock = true; }; openMenu(m); return; }
   if (I.y > RH - 8 && Math.abs(I.x - RW / 2) < 38 && I.t > .8) exitShop();
@@ -2284,11 +2315,13 @@ function renderInside() {
   if (inside.bur) { renderBur(); return; }
   const I = inside, R = ROOM[I.sh.k] || ROOM.item, u = Math.max(.8, Math.min(vw, vh) / 700), z = Math.min(vw / (RW + 40), vh / (RH + 130)), ox = (vw - RW * z) / 2, oy = Math.max(60 * u, (vh - RH * z) / 2 - 6);
   ctx.save(); ctx.translate(ox, oy); ctx.scale(z, z);
-  roomBase(R.floor[0], R.floor[1], R.wall); R.draw();
-  const sp = R.spot || [252, 142], pu = (Math.sin(time * 5) + 1) / 2; ctx.strokeStyle = '#ffe14d'; ctx.lineWidth = 3; ctx.globalAlpha = .5 + .4 * pu; ctx.beginPath(); ctx.arc(sp[0], sp[1], 22 + pu * 4, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; text(R.lbl || 'KAUFEN', sp[0], sp[1] + 1, 10, '#ffe14d');
-  if (!R.noClerk) { ctx.save(); ctx.translate(R.clerk ? R.clerk[0] : 252, R.clerk ? R.clerk[1] : 72); ctx.scale(2.3, 2.3); drawPerson(0, 0, Math.PI / 2, I.sh.col, time * 3 > 0 ? Math.sin(time * 1.5) * .6 : 0, false, false, '#d8a070', '#3a2a1a'); ctx.restore(); }
+  const sd = Math.abs(Math.floor(I.sh.x * 3 + I.sh.y * 5)), sty = sd % 4, tv = [-.1, 0, .09, .16][sty];
+  roomBase(shade(R.floor[0], tv), shade(R.floor[1], tv), shade(R.wall, -tv * .8)); ctx.save(); ctx.translate(RX, 0); R.draw(); ctx.restore(); roomExtra(sty, sd);
+  const sp0 = R.spot || [252, 142], sp = [sp0[0] + RX, sp0[1]], pu = (Math.sin(time * 5) + 1) / 2; ctx.strokeStyle = '#ffe14d'; ctx.lineWidth = 3; ctx.globalAlpha = .5 + .4 * pu; ctx.beginPath(); ctx.arc(sp[0], sp[1], 22 + pu * 4, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; text(R.lbl || 'KAUFEN', sp[0], sp[1] + 1, 10, '#ffe14d');
+  if (!R.noClerk) { ctx.save(); ctx.translate((R.clerk ? R.clerk[0] : 252) + RX, R.clerk ? R.clerk[1] : 72); ctx.scale(2.3, 2.3); drawPerson(0, 0, Math.PI / 2, I.sh.col, time * 3 > 0 ? Math.sin(time * 1.5) * .6 : 0, false, false, '#d8a070', '#3a2a1a'); ctx.restore(); }
   ctx.save(); ctx.translate(I.x, I.y); ctx.scale(2.3, 2.3); drawPerson(0, 0, I.a, OUTFIT[outfit], I.ph, true); ctx.restore();
-  text('AUSGANG', 252, RH - 26, 10, '#ffd23a');
+  if (I.cop) { ctx.save(); ctx.translate(I.cop.x, I.cop.y); ctx.scale(2.3, 2.3); drawPerson(0, 0, I.cop.a, '#1d3fa8', I.cop.ph, false, true, '#d8a070', '#222', '#14286e'); ctx.restore(); }
+  text('AUSGANG', RW / 2, RH - 26, 10, '#ffd23a');
   ctx.restore();
   panel(vw / 2 - 92 * u, 6 * u, 184 * u, 38 * u); text('$ ' + money, vw / 2, 26 * u, 26 * u, '#ffd200');
   text(I.sh.n + (I.sh.sn ? ' – ' + I.sh.sn : ''), vw / 2, 62 * u, 17 * u, '#fff');
@@ -2534,7 +2567,7 @@ function loop(ts) {
   render(); if (photoReq && --photoReq === 0) takePhoto();
 }
 init(); requestAnimationFrame(loop);
-if (location.hash === '#debug') window.__rc = { updBur, burGen, enterBur, get inside() { return inside; }, get shops() { return shops; }, dmgCar, cash, sigs, lightState, get mission() { return mission; }, get fog() { return fog; }, set fog(v) { fog = v; }, get snow() { return snow; }, set snow(v) { snow = v; }, shots, useBtn, blockType, curb, openMenu, p, cars, peds, shops, inp, S, ramps, mc, tileAt, startGame, update, render, island, landB, cam: () => [camX, camY, zoom], setCam: (x, y) => { camX = x; camY = y; }, get started() { return started; }, get money() { return money; }, set money(v) { money = v; }, get mission() { return mission; }, startMission, get npc() { return npc; }, get heistBonus() { return heistBonus; }, startLock, startHeist, get mini() { return mini; }, tgts, get pickLv() { return pickLv; }, set pickLv(v) { pickLv = v; }, get heistReady() { return heistReady; }, set heistReady(v) { heistReady = v; }, npcBtn, burgleBtn, buildWorld, fetchCar, get zone() { return ZONE; }, get lastOwn() { return lastOwn; }, set lastOwn(v) { lastOwn = v; }, owned, startRide, arriveAt, startAccident, helpers, tanks, jets, bombs, get chaos() { return chaos; }, set chaos(v) { chaos = v; }, wp, ST, enterShop, exitShop, startRide, get inside() { return inside; }, get ride() { return ride; }, get dead() { return dead; }, tramStops, tram: () => tram, openMenuX: () => menu, wasted, busted, respawn, reviveNow, inv, useItem, startJob, endJob, renderHot, hosp: () => hosp, dump: () => dump, get jobSt() { return jobSt; }, get stars() { return stars; }, get heat() { return heat; }, get armor() { return p.armor; }, addHeat, toggleBig: () => { bigMap = !bigMap; $('mapHit').classList.toggle('big', bigMap); }, W, N, TS, PER, NB };
+if (location.hash === '#debug') window.__rc = { shopBreak, robBtn, pedNear, updInside, updBur, burGen, enterBur, get inside() { return inside; }, get shops() { return shops; }, dmgCar, cash, sigs, lightState, get mission() { return mission; }, get fog() { return fog; }, set fog(v) { fog = v; }, get snow() { return snow; }, set snow(v) { snow = v; }, shots, useBtn, blockType, curb, openMenu, p, cars, peds, shops, inp, S, ramps, mc, tileAt, startGame, update, render, island, landB, cam: () => [camX, camY, zoom], setCam: (x, y) => { camX = x; camY = y; }, get started() { return started; }, get money() { return money; }, set money(v) { money = v; }, get mission() { return mission; }, startMission, get npc() { return npc; }, get heistBonus() { return heistBonus; }, startLock, startHeist, get mini() { return mini; }, tgts, get pickLv() { return pickLv; }, set pickLv(v) { pickLv = v; }, get heistReady() { return heistReady; }, set heistReady(v) { heistReady = v; }, npcBtn, burgleBtn, buildWorld, fetchCar, get zone() { return ZONE; }, get lastOwn() { return lastOwn; }, set lastOwn(v) { lastOwn = v; }, owned, startRide, arriveAt, startAccident, helpers, tanks, jets, bombs, get chaos() { return chaos; }, set chaos(v) { chaos = v; }, wp, ST, enterShop, exitShop, startRide, get inside() { return inside; }, get ride() { return ride; }, get dead() { return dead; }, tramStops, tram: () => tram, openMenuX: () => menu, wasted, busted, respawn, reviveNow, inv, useItem, startJob, endJob, renderHot, hosp: () => hosp, dump: () => dump, get jobSt() { return jobSt; }, get stars() { return stars; }, get heat() { return heat; }, get armor() { return p.armor; }, addHeat, toggleBig: () => { bigMap = !bigMap; $('mapHit').classList.toggle('big', bigMap); }, W, N, TS, PER, NB };
 })();
 </script>
 </body>
