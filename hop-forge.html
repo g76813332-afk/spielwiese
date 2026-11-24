@@ -402,7 +402,8 @@ function drawEnemy(c, e, t, icon) {
   }
   c.restore();
 }
-let SKIN = { f: '#ff9a3a', b: '#2fb8a8', c: '#ff4a4a' };
+let SKIN = { f: '#f6d2a8', b: '#2fb8a8', c: '#ff4a4a', h: '#5a3320' };
+function shade(hex, k) { const n = parseInt(hex.slice(1), 16), r = Math.round((n >> 16) * k), g = Math.round(((n >> 8) & 255) * k), b = Math.round((n & 255) * k); return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1); }
 function drawHero(c, p, t) {
   c.save(); const cx = p.x + p.w / 2, by = p.y + p.h; c.translate(cx, by); c.lineJoin = 'round'; c.lineCap = 'round'; c.strokeStyle = OUT; c.lineWidth = 3; const psc = p.sc || 1; c.scale(psc, psc);
   const vx = p.vx || 0, vy = p.vy || 0, spd = Math.abs(vx), gr = !!p.gr, moving = spd > 20 && gr, cyc = (p.ph || 0) * .8, dsh = (p.dashT || 0) > 0, f = p.face || 1, atk = p.atk > 0;
@@ -411,23 +412,25 @@ function drawHero(c, p, t) {
   if (p.duck) { sx *= 1.12; sy *= .8; }
   if (gr) { c.fillStyle = 'rgba(0,0,0,.2)'; ell(c, 0, 0, 11, 3, 'rgba(0,0,0,.2)'); }
   c.scale(sx * f, sy); c.rotate(p.skid ? -.22 : dsh ? .25 : moving ? Math.min(1, spd / 285) * .14 : !gr ? clamp(vx * f / 285, -1, 1) * .08 : 0);
-  const fur = SKIN.f, tun = p.star > 0 ? `hsl(${(t * 600) % 360},90%,60%)` : p.fire ? '#ff6a2a' : SKIN.b, scf = p.star > 0 ? `hsl(${(t * 600 + 120) % 360},90%,55%)` : p.fire ? '#ffe27a' : SKIN.c, hipY = -9 - bob * .5, up = vy < 0;
-  { c.save(); c.translate(-7, hipY - 3); c.rotate(-.9 + Math.sin(t * 6 + (p.ph || 0)) * .25 + (moving ? -.25 : 0)); ell(c, 0, -9, 5.5, 10, fur, true); ell(c, 0, -16, 4.4, 4.4, '#fff', true); c.restore(); }
+  const sk = SKIN.f, hair = SKIN.h || '#5a3320', tun = p.star > 0 ? `hsl(${(t * 600) % 360},90%,60%)` : p.fire ? '#ff6a2a' : SKIN.b, scf = p.star > 0 ? `hsl(${(t * 600 + 120) % 360},90%,55%)` : p.fire ? '#ffe27a' : SKIN.c, pants = shade(SKIN.b, .55), hipY = -9 - bob * .5, up = vy < 0;
   const leg = (ph, back) => { let fx, fy; if (!gr) { fx = up ? (back ? -4 : 6) : (back ? -7 : 7); fy = up ? (back ? -9 : -5) : (back ? -4 : -2); } else if (moving) { fx = Math.sin(ph) * 8; fy = -Math.max(0, Math.cos(ph)) * 5 - 1; } else { fx = back ? -4 : 4; fy = -1; }
-    c.lineWidth = 8.5; c.strokeStyle = OUT; c.beginPath(); c.moveTo(back ? -3 : 3, hipY); c.lineTo(fx, fy - 2); c.stroke(); c.lineWidth = 4.2; c.strokeStyle = fur; c.stroke(); c.lineWidth = 3; c.strokeStyle = OUT; ell(c, fx + 1.5, fy - 1, 5.6, 3.7, '#4a2a22', true); };
+    c.lineWidth = 8.5; c.strokeStyle = OUT; c.beginPath(); c.moveTo(back ? -3 : 3, hipY); c.lineTo(fx, fy - 2); c.stroke(); c.lineWidth = 4.2; c.strokeStyle = pants; c.stroke(); c.lineWidth = 3; c.strokeStyle = OUT; ell(c, fx + 1.5, fy - 1, 5.6, 3.7, '#5a3a2a', true); };
   const arm = side => { const ox = side ? 6 : -6, oy = hipY - 9; let a; if (atk && side) a = p.atkDir === 'u' ? 3.0 : 1.55; else if (p.pound) a = side ? 2.9 : -2.9; else if (!gr) a = side ? (up ? 2.5 : 1.8) : (up ? -2.3 : -1.6); else if (moving) a = Math.sin(cyc + (side ? 0 : Math.PI)) * 1.1; else a = (side ? 1 : -1) * (.12 + Math.sin(t * 2.6) * .06); const L = atk && side ? 12 : 9, ex = ox + Math.sin(a) * L, ey = oy + Math.cos(a) * L;
-    c.lineWidth = 7.5; c.strokeStyle = OUT; c.beginPath(); c.moveTo(ox, oy); c.lineTo(ex, ey); c.stroke(); c.lineWidth = 3.8; c.strokeStyle = tun; c.stroke(); c.lineWidth = 3; c.strokeStyle = OUT; ell(c, ex, ey, 3.8, 3.8, fur, true); };
+    c.lineWidth = 7.5; c.strokeStyle = OUT; c.beginPath(); c.moveTo(ox, oy); c.lineTo(ex, ey); c.stroke(); c.lineWidth = 3.8; c.strokeStyle = tun; c.stroke(); c.lineWidth = 3; c.strokeStyle = OUT; ell(c, ex, ey, 3.8, 3.8, sk, true); };
   leg(cyc + Math.PI, true); arm(false);
-  rrect(c, -8.5, hipY - 12, 17, 13.5, 5); c.fillStyle = tun; c.fill(); c.stroke(); c.fillStyle = 'rgba(255,255,255,.3)'; c.fillRect(-6, hipY - 10, 3, 8); c.fillStyle = '#ffd23a'; c.beginPath(); c.arc(0, hipY - 5, 1.9, 0, TAU); c.fill();
+  rrect(c, -8.5, hipY - 12, 17, 13.5, 5); c.fillStyle = tun; c.fill(); c.stroke(); c.fillStyle = 'rgba(255,255,255,.3)'; c.fillRect(-6, hipY - 10, 3, 8); c.fillStyle = '#ffd23a'; c.beginPath(); c.arc(0, hipY - 5, 1.9, 0, TAU); c.fill(); c.fillStyle = shade(SKIN.b, .55); c.fillRect(-8.5 + 1.5, hipY - 3, 14, 2.4);
   { const ny = hipY - 11, L = 9 + Math.min(14, spd * .05) + (!gr ? 3 : 0), w = Math.sin(t * 14) * 2.4; c.fillStyle = scf; rrect(c, -7.5, ny - 3, 15, 5.5, 2.7); c.fill(); c.stroke(); c.beginPath(); c.moveTo(-6, ny - 1); c.quadraticCurveTo(-6 - L * .6, ny - 3 + w, -6 - L, ny + 2 + w * 1.4); c.lineTo(-5 - L, ny + 6 + w * 1.4); c.quadraticCurveTo(-6 - L * .5, ny + 3 + w, -5, ny + 4); c.closePath(); c.fill(); c.stroke(); }
   leg(cyc, false); arm(true);
-  const hy = hipY - 22 + (dsh ? 1 : 0), eb = moving || !gr ? clamp(spd / 285, 0, 1) * 4 : 0;
-  c.fillStyle = fur; c.beginPath(); c.moveTo(-9, hy - 5); c.lineTo(-9 - eb, hy - 17); c.lineTo(-1, hy - 9); c.closePath(); c.fill(); c.stroke(); c.beginPath(); c.moveTo(1, hy - 9); c.lineTo(3 - eb, hy - 19); c.lineTo(9, hy - 6); c.closePath(); c.fill(); c.stroke(); c.fillStyle = '#ff9ab8'; c.beginPath(); c.moveTo(-7, hy - 7); c.lineTo(-7.5 - eb * .8, hy - 13); c.lineTo(-3, hy - 9); c.closePath(); c.fill(); c.beginPath(); c.moveTo(3, hy - 10); c.lineTo(3.5 - eb * .8, hy - 15); c.lineTo(7, hy - 8); c.closePath(); c.fill();
-  ell(c, 0, hy, 10.8, 10, fur, true); ell(c, 5.4, hy + 4.4, 5.6, 3.9, '#fff1dd'); ell(c, 9.8, hy + 2.2, 1.9, 1.5, OUT);
+  const hy = hipY - 22 + (dsh ? 1 : 0), sw = moving || !gr ? clamp(spd / 285, 0, 1) * 4 : 0;
+  ell(c, 0, hy, 10.4, 10, sk, true);
+  c.fillStyle = hair; c.beginPath(); c.moveTo(-10.4, hy + 1); c.quadraticCurveTo(-11.8, hy - 13.5, 0, hy - 12.8); c.quadraticCurveTo(11, hy - 12.8, 10.3, hy - 4.5); c.lineTo(6.5, hy - 6); c.lineTo(3, hy - 8.8); c.lineTo(-1, hy - 5.5); c.lineTo(-5, hy - 7.8); c.lineTo(-8.2, hy - 2.5); c.closePath(); c.fill(); c.stroke();
+  c.beginPath(); c.moveTo(-8, hy - 8); c.lineTo(-14 - sw, hy - 9); c.lineTo(-9, hy - 3); c.closePath(); c.fill(); c.stroke();
+  c.fillStyle = scf; rrect(c, -10.2, hy - 9.4, 20.6, 3.4, 1.7); c.fill(); c.stroke();
   const blink = (t % 3.6) < .13;
-  for (const sd of [-1, 1]) { const ex = 2.2 + sd * 2.9; if (blink) { c.lineWidth = 2.2; c.beginPath(); c.moveTo(ex - 2.4, hy - 1.5); c.lineTo(ex + 2.4, hy - 1.5); c.stroke(); } else { ell(c, ex, hy - 2, 2.9, 3.6, '#fff', true); c.fillStyle = OUT; c.beginPath(); c.arc(ex + 1.1, hy - 1.4, 1.5, 0, TAU); c.fill(); } }
-  c.lineWidth = 2.2; c.beginPath(); c.moveTo(-.5, hy - 6.6 + (dsh ? 1.5 : 0)); c.lineTo(5.6, hy - 7.2 - (dsh ? 0 : .6)); c.stroke();
-  if (!gr || dsh || atk) { ell(c, 7.4, hy + 7, 2.2, 2.7, '#7a1f2a', true); } else { c.strokeStyle = '#7a3a2a'; c.lineWidth = 1.8; c.beginPath(); c.arc(6.4, hy + 6, 2.2, .15, Math.PI - .15); c.stroke(); }
+  for (const sd of [-1, 1]) { const ex = 2.2 + sd * 2.9; if (blink) { c.lineWidth = 2.2; c.beginPath(); c.moveTo(ex - 2.4, hy - .5); c.lineTo(ex + 2.4, hy - .5); c.stroke(); } else { ell(c, ex, hy - .6, 2.8, 3.4, '#fff', true); c.fillStyle = OUT; c.beginPath(); c.arc(ex + 1.1, hy - .2, 1.5, 0, TAU); c.fill(); } }
+  c.lineWidth = 2.2; c.beginPath(); c.moveTo(-.5, hy - 4.4 + (dsh ? 1.5 : 0)); c.lineTo(5.6, hy - 5 - (dsh ? 0 : .6)); c.stroke(); ell(c, 8.6, hy + 2.6, 1.5, 1.2, shade(sk, .8));
+  if (!gr || dsh || atk) { ell(c, 5.6, hy + 6, 2.2, 2.6, '#7a1f2a', true); } else { c.strokeStyle = '#7a3a2a'; c.lineWidth = 1.8; c.beginPath(); c.arc(4.8, hy + 5, 2.4, .15, Math.PI - .15); c.stroke(); }
+  c.fillStyle = 'rgba(255,110,130,.4)'; c.beginPath(); c.arc(-.8, hy + 4, 2, 0, TAU); c.fill();
   c.restore();
 }
 // Hintergrund (Parallax)
@@ -1178,15 +1181,15 @@ try { muted = localStorage.getItem('hb_mute') === '1'; $('bMute').textContent = 
 try { DARK = localStorage.getItem('hb_dark') === '1'; } catch (e) {}
 function applyDark() { document.body.classList.toggle('dark', DARK); $('bDark').textContent = 'Dark Mode: ' + (DARK ? 'an' : 'aus'); try { localStorage.setItem('hb_dark', DARK ? '1' : '0'); } catch (e) {} }
 $('bDark').onclick = () => { DARK = !DARK; applyDark(); SFX.click(); }; applyDark();
-const SKINS = [['Fuchs', '#ff9a3a', '#2fb8a8', '#ff4a4a'], ['Schneehase', '#f2f6ff', '#7a6cff', '#ffd23a'], ['Kater', '#7a809a', '#ff7ac8', '#4af0ff'], ['Frosch', '#5ccf5c', '#ffb23a', '#a06bff'], ['Nacht', '#3a3560', '#ff4a6a', '#ffe23a']];
-try { const q = JSON.parse(localStorage.getItem('hb_skin') || 'null'); if (q && /^#[0-9a-f]{6}$/i.test(q.f) && /^#[0-9a-f]{6}$/i.test(q.b) && /^#[0-9a-f]{6}$/i.test(q.c)) SKIN = { f: q.f, b: q.b, c: q.c }; } catch (e) {}
+const SKINS = [['Sonne', '#f6d2a8', '#2fb8a8', '#ff4a4a', '#5a3320'], ['Schnee', '#fbe6d2', '#7a6cff', '#ffd23a', '#e8e8f0'], ['Dunkel', '#8a5a3a', '#ff7ac8', '#4af0ff', '#1d1428'], ['Wald', '#e8b890', '#5a9a4a', '#ffb23a', '#c0462a'], ['Nacht', '#f0c8a0', '#3a3560', '#ff4a6a', '#3a2a6a']];
+try { const q = JSON.parse(localStorage.getItem('hb_skin') || 'null'); if (q && /^#[0-9a-f]{6}$/i.test(q.f) && /^#[0-9a-f]{6}$/i.test(q.b) && /^#[0-9a-f]{6}$/i.test(q.c) && /^#[0-9a-f]{6}$/i.test(q.h)) SKIN = { f: q.f, b: q.b, c: q.c, h: q.h }; } catch (e) {}
 function skinDialog() {
   modal(`<h2>Held gestalten</h2><canvas id="skC" width="200" height="150" style="position:static;display:block;margin:0 auto 10px;background:linear-gradient(#bfe9ff,#e8f8ff);border:3px solid #1d1428;border-radius:12px"></canvas><div class="row" id="skP" style="margin:0 0 8px">${SKINS.map((q, i) => `<button class="btn gr" data-i="${i}" style="padding:7px 12px;font-size:13px">${q[0]}</button>`).join('')}</div>
-    <div class="row" style="margin:0 0 8px;align-items:center"><label class="lab" style="margin:0">Fell <input type="color" id="skF" value="${SKIN.f}" style="width:56px;height:38px;padding:0"></label><label class="lab" style="margin:0">Kleidung <input type="color" id="skB" value="${SKIN.b}" style="width:56px;height:38px;padding:0"></label><label class="lab" style="margin:0">Schal <input type="color" id="skS" value="${SKIN.c}" style="width:56px;height:38px;padding:0"></label></div><div class="row"><button class="btn g" id="skOk">Fertig</button></div>`, () => {
+    <div class="row" style="margin:0 0 8px;align-items:center"><label class="lab" style="margin:0">Haut <input type="color" id="skF" value="${SKIN.f}" style="width:56px;height:38px;padding:0"></label><label class="lab" style="margin:0">Kleidung <input type="color" id="skB" value="${SKIN.b}" style="width:56px;height:38px;padding:0"></label><label class="lab" style="margin:0">Schal <input type="color" id="skS" value="${SKIN.c}" style="width:56px;height:38px;padding:0"></label><label class="lab" style="margin:0">Haare <input type="color" id="skH" value="${SKIN.h}" style="width:56px;height:38px;padding:0"></label></div><div class="row"><button class="btn g" id="skOk">Fertig</button></div>`, () => {
     const cx = $('skC').getContext('2d'); let tm = setInterval(() => { if (!$('skC')) { clearInterval(tm); return; } const t = performance.now() / 1000; cx.clearRect(0, 0, 200, 150); cx.save(); cx.translate(100, 130); cx.scale(3, 3); drawHero(cx, { x: -11, y: -28, w: 22, h: 28, vx: 0, vy: 0, gr: true, face: 1, ph: 0, sq: 0 }, t); cx.restore(); }, 60);
-    const save = () => { SKIN = { f: $('skF').value, b: $('skB').value, c: $('skS').value }; try { localStorage.setItem('hb_skin', JSON.stringify(SKIN)); } catch (e) {} };
-    for (const b of $('skP').children) b.onclick = () => { const q = SKINS[+b.dataset.i]; $('skF').value = q[1]; $('skB').value = q[2]; $('skS').value = q[3]; save(); SFX.click(); };
-    for (const id of ['skF', 'skB', 'skS']) $(id).oninput = save; $('skOk').onclick = () => { clearInterval(tm); closeModal(); }; });
+    const save = () => { SKIN = { f: $('skF').value, b: $('skB').value, c: $('skS').value, h: $('skH').value }; try { localStorage.setItem('hb_skin', JSON.stringify(SKIN)); } catch (e) {} };
+    for (const b of $('skP').children) b.onclick = () => { const q = SKINS[+b.dataset.i]; $('skF').value = q[1]; $('skB').value = q[2]; $('skS').value = q[3]; $('skH').value = q[4]; save(); SFX.click(); };
+    for (const id of ['skF', 'skB', 'skS', 'skH']) $(id).oninput = save; $('skOk').onclick = () => { clearInterval(tm); closeModal(); }; });
 }
 $('bSkin').onclick = () => { SFX.click(); skinDialog(); };
 function updName() { let nm = ''; try { nm = localStorage.getItem('hb_name') || ''; } catch (e) {} $('bName').textContent = nm ? 'Name: ' + nm : 'Name'; }
