@@ -518,7 +518,9 @@ const ITEMS = [
   { k: 'energy', ic: '⚡', n: 'Energydrink', pr: 70, d: '25 s schneller laufen', sup: 1 },
   { k: 'smoke', ic: '🌫', n: 'Nebelgranate', pr: 180, d: '10 s Nebel: Polizei verliert dich' },
   { k: 'disg', ic: '🕶', n: 'Verkleidung', pr: 220, d: 'Fahndung −35, wenn dich keiner sieht' },
-  { k: 'jam', ic: '📻', n: 'Störsender', pr: 300, d: '60 s: Zeugen rufen keine Polizei' }
+  { k: 'jam', ic: '📻', n: 'Störsender', pr: 300, d: '60 s: Zeugen rufen keine Polizei, Alarmanlagen fallen aus' },
+  { k: 'crowbar', ic: '🔧', n: 'Brecheisen', pr: 400, d: 'bricht eine Innentür auf (laut) – automatisch im Einbruch' },
+  { k: 'treat', ic: '🍔', n: 'Hundekuchen', pr: 120, d: 'beruhigt einen Wachhund – automatisch im Einbruch' }
 ];
 const inv = {}; ITEMS.forEach(i => inv[i.k] = 0); inv.tnt = 0;
 const spikes = [];
@@ -1536,6 +1538,7 @@ function useItem(k) {
   else if (k === 'energy') { energyT = 25; toast('Energydrink: 25 s schneller!', '#ffd200', 1.6); }
   else if (k === 'smoke') { const o = P(); smokes.push({ x: o.x, y: o.y, t: 10 }); toast('Nebelgranate gezündet', '#ddd', 1.6); noise(.3, .3, 800); }
   else if (k === 'disg') { if (stars === 0) { toast('Dich sucht niemand', '#ff0', 1.2); return; } if (seen) { toast('Zu auffällig – die Polizei sieht dich!', '#ff6b6b', 1.8); return; } heat = Math.max(0, heat - 35); outfit = (outfit + 1) % OUTFIT.length; toast('Verkleidet – Fahndung gesenkt', '#7f7', 1.6); }
+  else if (k === 'crowbar' || k === 'treat') { toast('Wird beim Einbruch automatisch benutzt', '#ff0', 1.8); return; }
   else if (k === 'jam') { jamT = 60; toast('Störsender an: 60 s keine Zeugenanrufe', '#7fd0ff', 2); }
   inv[k]--; tone(700, .06, 'square', .1); renderHot(); save();
 }
@@ -2390,7 +2393,17 @@ const BUR = [null,
   { n: 'WOHNHAUS', c: 3, r: 1, gd: s => s % 2, lm: 1, sv: 1200, lk: 5, est: '$200 – $700' },
   { n: 'LANDHAUS', c: 3, r: 2, gd: s => 1 + s % 2, lm: 2.6, sv: 5000, lk: 12, est: '$1.500 – $7.000' },
   { n: 'LUXUSVILLA', c: 4, r: 2, gd: () => 3, lm: 6, sv: 18000, lk: 20, est: '$8.000 – $30.000' }];
-const BT = 20, BRW = 15, BRH = 11;
+const BT = 20, BRW = 15, BRH = 11, LW = { cash: .4, gem: .2, clock: .5, ring: .1, laptop: 3, coin: .4 };
+function drawDog(g) {
+  ctx.save(); ctx.translate(g.x, g.y); ctx.rotate(g.a); const l = Math.sin(g.ph * 2.2) * 2.2;
+  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(1, 3, 10, 5, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = '#4a2f18'; ctx.lineWidth = 2.2; ctx.lineCap = 'round'; for (const [x, y, s2] of [[5, -4, 1], [5, 4, -1], [-5, -4, -1], [-5, 4, 1]]) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + l * s2, y + (y > 0 ? 2 : -2)); ctx.stroke(); }
+  ctx.fillStyle = '#7a4a22'; ctx.beginPath(); ctx.ellipse(0, 0, 9, 5, 0, 0, TAU); ctx.fill(); ctx.strokeStyle = '#2a1608'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = '#8c5a2a'; ctx.beginPath(); ctx.ellipse(9, 0, 4.6, 3.6, 0, 0, TAU); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(12.5, 0, 1.2, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#5a3416'; ctx.beginPath(); ctx.ellipse(8, -3.6, 2, 1.3, .4, 0, TAU); ctx.ellipse(8, 3.6, 2, 1.3, -.4, 0, TAU); ctx.fill();
+  ctx.strokeStyle = '#7a4a22'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-8, 0); ctx.lineTo(-13, Math.sin(time * 14) * 3 - (g.state === 'chase' ? 2 : 0)); ctx.stroke(); ctx.restore();
+  if (g.tame) icon('heart', g.x, g.y - 14, 10, '#ff6b7a', true); else if (g.state !== 'patrol' || g.al > .1) text(g.state === 'chase' ? '!' : '?', g.x, g.y - 14, 13, g.state === 'chase' ? '#ff4040' : '#ffd23a');
+}
 const burSeed = sh => Math.abs(Math.floor(sh.x * 7 + sh.y * 13));
 const burRng = s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 function burInfo(sh) {
@@ -2460,16 +2473,27 @@ function burGen(sh) {
       B.paints.push({ x: (ox + o[4]) * BT + (o[6] ? 0 : 0), y: (oy + o[5]) * BT, vert: !!o[6], safe: false, seen: false, c: ['#c0503a', '#3a7ab0', '#d8a83a', '#4a9a5a'][Math.floor(R() * 4)] }); }
   }
   const cand = B.paints.map((q, i) => i).filter(i => !(B.rooms[i].c === 0 && B.rooms[i].r === Rr - 1)), si = cand[Math.floor(R() * cand.length)]; B.paints[si].safe = true; B.safeV = Math.round(D.sv * (.8 + R() * .4) / 50) * 50;
+  { const house = !!sh.lv; B.sec = { alarm: R() < (house ? .3 + .1 * lv : .5), dog: house && R() < .12 + .13 * lv }; B.sleepers = []; B.doors = []; B.panel = null; B.alarmT = 0; B.wt = 0;
+    for (const q of B.paints) if (!q.safe && lv >= 2 && R() < .6) q.val = Math.round(D.sv * .14 * (.6 + R() * .8) / 50) * 50;
+    if (B.sec.alarm) { B.panel = { x: BT * .5, y: ((Rr - 1) * BRH + 5.5) * BT }; B.alarmT = 26 + lv * 4; B.panelOff = jamT > 0; }
+    if (house) for (const f of B.furn) if (f.k === 'bed' && B.sleepers.length < 2 && R() < .55) B.sleepers.push({ x: f.x + f.w * .3, y: f.y + f.h / 2, w: 0, up: false, f });
+    const cands = []; for (let r = 0; r < Rr; r++) for (let c = 1; c < C; c++) cands.push({ v: true, c, r }); for (let r = 1; r < Rr; r++) for (let c = 0; c < C; c++) cands.push({ v: false, c, r });
+    for (let i = cands.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [cands[i], cands[j]] = [cands[j], cands[i]]; }
+    const nl = Math.min(cands.length, Math.floor(R() * (lv + 1)) + (lv >= 3 ? 1 : 0)), KN = [['cyl', 'Zylinderschloss'], ['num', 'Zahlenschloss'], ['sec', 'Sicherheitsschloss']];
+    for (let i = 0; i < nl; i++) { const q = cands[i], kn = KN[Math.floor(R() * 3)], tiles = [];
+      for (let k = 0; k < 3; k++) { const tx = q.v ? q.c * BRW : q.c * BRW + 6 + k, ty = q.v ? q.r * BRH + 4 + k : q.r * BRH; G[ty * GW + tx] = 4; tiles.push(ty * GW + tx); }
+      B.doors.push({ tiles, kind: kn[0], name: kn[1], open: false, x: q.v ? q.c * BRW * BT : (q.c * BRW + 6) * BT, y: q.v ? (q.r * BRH + 4) * BT : q.r * BRH * BT, w: q.v ? BT : 3 * BT, h: q.v ? 3 * BT : BT }); } }
   const route = []; if (Rr === 1) { for (let c = 0; c < C; c++) route.push([c, 0]); } else { for (let c = 0; c < C; c++) route.push([c, 0]); for (let c = C - 1; c >= 0; c--) route.push([c, 1]); }
   const wp = route.map(([c, r]) => [(c * BRW + 7.5) * BT, (r * BRH + 5.5) * BT]), nG = D.gd(sd), entIdx = route.findIndex(q => q[0] === 0 && q[1] === Rr - 1);
   for (let i = 0; i < nG; i++) { let st = (Math.floor(i * route.length / nG) + 1 + (sd % 3)) % route.length; if (st === entIdx && route.length > 1) st = (st + 1) % route.length; B.guards.push({ x: wp[st][0], y: wp[st][1], a: R() * TAU, wi: (st + 1) % route.length, route: wp, state: 'patrol', al: 0, pw: null, rt: 0, nx: wp[st][0], ny: wp[st][1], ph: 0, lose: 0, wait: 0, tx: 0, ty: 0, lx: 0, ly: 0, base: 0 }); }
+  if (B.sec.dog) { let st = (entIdx + 1 + (sd % 2)) % route.length; if (st === entIdx) st = (st + 1) % route.length; B.guards.push({ dog: true, x: wp[st][0], y: wp[st][1], a: R() * TAU, wi: (st + 1) % route.length, route: wp, state: 'patrol', al: 0, pw: null, rt: 0, nx: wp[st][0], ny: wp[st][1], ph: 0, lose: 0, wait: 0, tx: 0, ty: 0, lx: 0, ly: 0, base: 0 }); }
   B.exitY = Rr * BRH * BT + 10; return B;
 }
 function enterBur(sh) {
   initAudio(); inputsReset(); tone(660, .1, 'sine', .1); tone(520, .12, 'sine', .1, 0, .1);
   toastT = 0; fadeTo(() => { const B = burGen(sh); inside = { sh, bur: B, x: 7.5 * BT, y: B.D.r * BRH * BT - 26, a: -Math.PI / 2, ph: 0, t: 0 }; B.msg = 'Schleiche leise! SPRINT = laut'; B.msgT = 3.5; });
 }
-const burWall = (B, x, y) => { const tx = Math.floor(x / BT), ty = Math.floor(y / BT); return tx >= 0 && ty >= 0 && tx < B.GW && ty < B.GH && B.G[ty * B.GW + tx] === 1; };
+const burWall = (B, x, y) => { const tx = Math.floor(x / BT), ty = Math.floor(y / BT); return tx >= 0 && ty >= 0 && tx < B.GW && ty < B.GH && (B.G[ty * B.GW + tx] === 1 || B.G[ty * B.GW + tx] === 4); };
 const burSolid = (B, x, y) => { const tx = Math.floor(x / BT), ty = Math.floor(y / BT); return tx < 0 || ty < 0 || tx >= B.GW || ty >= B.GH || B.G[ty * B.GW + tx] !== 0; };
 const burFree = (B, x, y, r) => !(burSolid(B, x - r, y - r) || burSolid(B, x + r, y - r) || burSolid(B, x - r, y + r) || burSolid(B, x + r, y + r));
 function burLos(B, x0, y0, x1, y1) { const n = Math.ceil(dist(x0, y0, x1, y1) / 5); for (let i = 1; i < n; i++) { const t = i / n; if (burWall(B, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)) return false; } return true; }
@@ -2477,13 +2501,16 @@ function burStep(B, x, y, tx, ty) {
   const W = B.GW, H = B.GH, s = Math.floor(y / BT) * W + Math.floor(x / BT), e = Math.floor(ty / BT) * W + Math.floor(tx / BT); if (s === e) return [tx, ty];
   const prev = new Int16Array(W * H).fill(-1), q = [e]; prev[e] = e;
   for (let i = 0; i < q.length; i++) { const c = q[i]; if (c === s) break; const cx = c % W, cy = (c / W) | 0;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const n = ny * W + nx; if (prev[n] >= 0 || (B.G[n] !== 0 && n !== s)) continue; prev[n] = c; q.push(n); } }
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const n = ny * W + nx; if (prev[n] >= 0 || (B.G[n] !== 0 && B.G[n] !== 4 && n !== s)) continue; prev[n] = c; q.push(n); } }
   if (prev[s] < 0) return [tx, ty]; const n = prev[s]; return [(n % W + .5) * BT, ((n / W | 0) + .5) * BT];
 }
 const burRange = B => 135 + B.lv * 12;
 function burGuard(B, g, dt, I) {
-  const R = burRange(B), d = dist(g.x, g.y, I.x, I.y), los = !B.hid && d < R + 20 && burLos(B, g.x, g.y, I.x, I.y);
-  const vis = los && d < R && Math.abs(wrap(Math.atan2(I.y - g.y, I.x - g.x) - g.a)) < .5, near = los && d < 26, heard = !B.hid && B.run && d < 105;
+  const R = g.dog ? 78 : burRange(B), d = dist(g.x, g.y, I.x, I.y), los = !B.hid && d < R + 20 && burLos(B, g.x, g.y, I.x, I.y);
+  let vis = los && d < R && Math.abs(wrap(Math.atan2(I.y - g.y, I.x - g.x) - g.a)) < (g.dog ? 1.5 : .5), near = los && d < 26, heard = !B.hid && B.run && d < (g.dog ? 150 : 105);
+  if (g.dog && !g.tame && d < (B.hid ? 38 : 58)) vis = true;
+  if (g.dog && !g.tame && g.al > .45 && inv.treat > 0) { inv.treat--; g.tame = true; B.msg = 'Du wirfst dem Hund ein Leckerli zu – er ist brav'; B.msgT = 2.6; save(); }
+  if (g.tame) { vis = near = heard = false; g.al = 0; if (g.state === 'chase') g.state = 'patrol'; }
   if (g.state !== 'chase') {
     if (vis || near) { g.al = Math.min(1, g.al + dt * (d < 70 || near ? 2.6 : 1.25) * (B.run ? 1.5 : 1)); g.lx = I.x; g.ly = I.y; if (g.state === 'patrol' && g.al > .3) { g.state = 'look'; g.tx = I.x; g.ty = I.y; g.wait = 2.2; } }
     else if (heard) { g.al = Math.min(.8, g.al + dt * .5); if (g.state === 'patrol') { g.state = 'look'; g.tx = I.x; g.ty = I.y; g.wait = 2.5; } }
@@ -2495,9 +2522,9 @@ function burGuard(B, g, dt, I) {
     if (d < 15 || (B.hid && d < 22)) { B.caught = 1.4; B.msg = 'ERWISCHT!'; B.msgT = 2; tone(200, .4, 'sawtooth', .18, 90); return; }
   }
   let tx, ty, sp, moving = true;
-  if (g.state === 'chase') { sp = 108; tx = g.lose > 0 ? g.lx : I.x; ty = g.lose > 0 ? g.ly : I.y; }
-  else if (g.state === 'look') { sp = 64; tx = g.tx; ty = g.ty; if (dist(g.x, g.y, tx, ty) < 12) { moving = false; g.wait -= dt; g.a += Math.sin(time * 3) * dt * 1.6; if (g.wait <= 0) { g.state = 'patrol'; g.pw = null; } } }
-  else { sp = 46; const w = g.route[g.wi]; tx = w[0]; ty = w[1];
+  if (g.state === 'chase') { sp = g.dog ? 150 : g.res ? 100 : 108; tx = g.lose > 0 ? g.lx : I.x; ty = g.lose > 0 ? g.ly : I.y; }
+  else if (g.state === 'look') { sp = g.dog ? 85 : 64; tx = g.tx; ty = g.ty; if (dist(g.x, g.y, tx, ty) < 12) { moving = false; g.wait -= dt; g.a += Math.sin(time * 3) * dt * 1.6; if (g.wait <= 0) { g.state = 'patrol'; g.pw = null; } } }
+  else { sp = g.dog ? 62 : 46; const w = g.route[g.wi]; tx = w[0]; ty = w[1];
     if (dist(g.x, g.y, tx, ty) < 7) { moving = false; if (g.pw == null) { g.pw = 1.7; g.base = g.a; } g.pw -= dt; g.a = g.base + Math.sin((1.7 - g.pw) * 3.2) * .95; if (g.pw <= 0) { g.pw = null; g.wi = (g.wi + 1) % g.route.length; } } }
   if (moving) {
     g.rt -= dt; if (g.rt <= 0) { g.rt = .14; const q = burStep(B, g.x, g.y, tx, ty); g.nx = q[0]; g.ny = q[1]; }
@@ -2505,6 +2532,9 @@ function burGuard(B, g, dt, I) {
   }
 }
 function burUnhide(B, I) { const h = B.hid; B.hid = null; I.x = h.x + h.w / 2; I.y = h.top ? h.y + h.h + 9 : h.y - 9; }
+function openDoor(B, dr) { dr.open = true; for (const t of dr.tiles) B.G[t] = 0; }
+function noiseAt(B, I, str) { for (const g of B.guards) if (g.state !== 'chase' && !g.tame && dist(g.x, g.y, I.x, I.y) < 120 + str * 60) { g.state = 'look'; g.tx = I.x; g.ty = I.y; g.wait = 3.2; g.al = Math.max(g.al, .45); } for (const sl of B.sleepers || []) if (!sl.up && dist(sl.x, sl.y, I.x, I.y) < 160) sl.w += .12 * str; }
+function ringAlarm(B, I) { B.alarmRung = true; B.alarm = true; B.msg = 'ALARMANLAGE! Die Polizei ist unterwegs – raus hier!'; B.msgT = 3; tone(300, .4, 'sawtooth', .16, 150); for (const g of B.guards) if (g.state !== 'chase' && !g.tame) { g.state = 'look'; g.tx = I.x; g.ty = I.y; g.wait = 5; g.al = Math.max(g.al, .6); } }
 function updBur(dt) {
   const I = inside, B = I.bur, D = B.D; time += dt; I.t += dt; B.t += dt; if (toastT > 0) toastT -= dt; if (B.msgT > 0) B.msgT -= dt;
   if (B.caught > 0) { B.caught -= dt; if (B.caught <= 0) exitBur(true); return; }
@@ -2512,18 +2542,26 @@ function updBur(dt) {
   let mx = (Math.abs(inp.sx) < .12 ? 0 : inp.sx) + kx, my = (Math.abs(inp.sy) < .12 ? 0 : inp.sy) + ky, l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; l = 1; }
   B.run = false;
   if (!B.hid) {
-    const run = !!(k.ShiftLeft || k.ShiftRight || inp.gas) && l > .05, sp = (run ? 135 : 72) * l, dx = mx * sp * dt, dy = my * sp * dt; B.run = run;
+    const run = !!(k.ShiftLeft || k.ShiftRight || inp.gas) && l > .05, sp = (run ? 135 : 72) * l * (1 - Math.min(.4, (B.wt || 0) * .04)), dx = mx * sp * dt, dy = my * sp * dt; B.run = run;
     if (l > .05) { I.a += wrap(Math.atan2(my, mx) - I.a) * Math.min(1, 14 * dt); I.ph += sp * dt * .1; }
     if (burFree(B, I.x + dx, I.y, 6)) I.x += dx; if (burFree(B, I.x, I.y + dy, 6)) I.y += dy;
-    for (const q of B.loot) if (!q.got && dist(q.x, q.y, I.x, I.y) < 38) { q.got = true; B.got += q.v; toast(`${q.e} +$${q.v}  (Tasche: $${B.got})`, '#7dff7d', 1.4); tone(1200, .07, 'square', .08); }
+    for (const q of B.loot) if (!q.got && dist(q.x, q.y, I.x, I.y) < 38) { q.got = true; B.got += q.v; B.wt = (B.wt || 0) + (LW[q.e] || .4); toast(`+$${q.v}  (Tasche: $${B.got})`, '#7dff7d', 1.4); tone(1200, .07, 'square', .08); }
     if (I.y > B.exitY) { exitBur(false); return; }
   }
+  if (B.panel && !B.panelOff && !B.alarmRung) { B.alarmT -= dt; if (jamT > 0) { B.panelOff = true; B.msg = 'Störsender: Alarmanlage ausgefallen'; B.msgT = 2.4; } else if (B.alarmT <= 0) ringAlarm(B, I); }
+  if (B.alarmRung) { B.sirT = (B.sirT || 0) - dt; if (B.sirT <= 0) { B.sirT = .42; tone(Math.floor(B.t * 2.4) % 2 ? 880 : 640, .22, 'square', .05); } }
+  for (const sl of B.sleepers || []) if (!sl.up) {
+    const d = dist(sl.x, sl.y, I.x, I.y); sl.w = Math.max(0, sl.w + dt * ((B.run && d < 120 ? .55 : 0) + (B.alarmRung ? 1.2 : 0) + (!B.hid && d < 36 ? .06 : 0) - .1));
+    if (sl.w >= 1) { sl.up = true; B.woke = true; B.alarm = true; B.msg = 'Ein Bewohner ist aufgewacht!'; B.msgT = 2.6; tone(300, .3, 'sawtooth', .16, 120); B.guards.push({ res: true, x: sl.x, y: sl.y + (sl.f.h > 0 ? 14 : 0), a: Math.PI / 2, wi: 0, route: [[sl.x, sl.y + 18]], state: 'look', tx: I.x, ty: I.y, wait: 3, al: .7, pw: null, rt: 0, nx: sl.x, ny: sl.y, ph: 0, lose: 0, lx: I.x, ly: I.y, base: 0 }); } }
   // naechste Aktion
   let act = null, ad = 1e9;
   if (B.hid) act = { t: 'Aus dem Versteck', f: () => burUnhide(B, I) };
   else {
     for (const h of B.hides) { const d = Math.hypot(Math.max(h.x - I.x, 0, I.x - h.x - h.w), Math.max(h.y - I.y, 0, I.y - h.y - h.h)); if (d < 22 && d < ad) { ad = d; act = { t: 'Verstecken (Schrank)', f: () => { const seen = B.guards.some(g => g.state === 'chase' && dist(g.x, g.y, I.x, I.y) < 160 && burLos(B, g.x, g.y, I.x, I.y)); if (seen) { B.msg = 'Er sieht dich – zu nah!'; B.msgT = 1.6; return; } B.hid = h; I.x = h.x + h.w / 2; I.y = h.y + h.h / 2; tone(300, .08, 'sine', .08); } }; } }
-    for (const q of B.paints) { const d = dist(q.x, q.y, I.x, I.y); if (d < 34 && d < ad) { ad = d; act = { t: q.safe && B.safeOpen ? 'Tresor (leer)' : 'Bild untersuchen', f: () => {
+    if (B.panel && !B.panelOff && !B.alarmRung) { const d = dist(B.panel.x, B.panel.y, I.x, I.y); if (d < 34 && d < ad) { ad = d; act = { t: 'Alarmanlage deaktivieren (Code knacken)', f: () => startLock(Math.max(3, D.lk - 4), ok => { if (ok) { B.panelOff = true; B.msg = 'Alarmanlage aus'; B.msgT = 2.2; jingle(true); } else ringAlarm(B, I); }, { kind: 'panel', title: 'ALARM-CODE KNACKEN' }) }; } }
+    for (const dr of B.doors) if (!dr.open) { const d = Math.hypot(Math.max(dr.x - I.x, 0, I.x - dr.x - dr.w), Math.max(dr.y - I.y, 0, I.y - dr.y - dr.h)); if (d < 22 && d < ad) { ad = d; act = inv.crowbar > 0 ? { t: `${dr.name}: mit Brecheisen aufbrechen (laut)`, f: () => { inv.crowbar--; openDoor(B, dr); noiseAt(B, I, 3); B.msg = 'KRACH! Die Tür ist auf'; B.msgT = 2; tone(160, .25, 'sawtooth', .18, 80); save(); } } : { t: `${dr.name} knacken`, f: () => startLock(Math.max(2, D.lk - 3), ok => { if (ok) { openDoor(B, dr); B.msg = 'Tür offen'; B.msgT = 1.6; jingle(true); } else { noiseAt(B, I, 2); B.msg = 'Zu laut – Schloss klemmt kurz'; B.msgT = 2; } }, { kind: dr.kind, title: dr.name.toUpperCase() }) }; } }
+    for (const q of B.paints) { const d = dist(q.x, q.y, I.x, I.y); if (d < 34 && d < ad) { ad = d; act = { t: q.taken ? 'Leere Wand' : q.safe && B.safeOpen ? 'Tresor (leer)' : (!q.safe && q.val ? 'Gemälde mitnehmen (schwer)' : 'Bild untersuchen'), f: () => {
+      if (q.taken) return; if (!q.safe && q.val) { q.taken = true; B.got += q.val; B.wt = (B.wt || 0) + 4; B.msg = `Gemälde gestohlen  +$${q.val}  (schwer!)`; B.msgT = 2.4; tone(900, .1, 'square', .1); return; }
       if (!q.safe) { q.seen = true; B.msg = 'Nur ein Bild – kein Tresor dahinter'; B.msgT = 1.8; return; }
       if (B.safeOpen) { B.msg = 'Der Tresor ist leer'; B.msgT = 1.6; return; }
       toast('Hinter dem Bild: ein TRESOR!', '#ffd200', 1.6);
@@ -2540,6 +2578,7 @@ function exitBur(caught) {
   const I = inside, B = I.bur, sh = I.sh; inputsReset(); let msg;
   if (caught) { const f = Math.min(money, 100 * B.lv); money -= f; addHeat(15 + 15 * B.lv, true); msg = `ERWISCHT! Beute weg, Strafe -$${f}`; }
   else { if (B.got > 0) { money += B.got; ST.burg = (ST.burg || 0) + 1; msg = `Entkommen mit $${B.got}!`; jingle(true); } else msg = 'Du bist wieder draußen.'; }
+  if (!caught && (B.alarmRung || B.woke)) { addHeat(B.alarmRung ? 28 : 18, true); msg += B.alarmRung ? ' – Alarm! Die Polizei sucht dich' : ' – der Bewohner hat die Polizei gerufen'; }
   if (B.got > 0 || caught) { sh.empty = ST.time + 600; if (sh.t) sh.t.cd = sh.empty; }
   tone(880, .1, 'sine', .1); tone(660, .12, 'sine', .1, 0, .1); save();
   fadeTo(() => { inside = null; p.x = sh.x + DX[sh.dir] * (sh.noOff ? 0 : 26); p.y = sh.y + DY[sh.dir] * (sh.noOff ? 0 : 26); if (!footFree(p.x, p.y)) { p.x = sh.x; p.y = sh.y; } shopLock = sh.noOff ? null : sh; camX = p.x; camY = p.y; toast(msg, caught ? '#f55' : '#ffd200', 3.2); });
@@ -2581,16 +2620,20 @@ function renderBur() {
     if (G[ty * W + tx] === 1) { ctx.fillStyle = '#2f2a3a'; ctx.fillRect(X, Y, BT, BT); ctx.fillStyle = '#463f56'; ctx.fillRect(X, Y, BT, 4); ctx.fillStyle = '#1c1824'; ctx.fillRect(X, Y + BT - 3, BT, 3); continue; }
     const rm = B.rooms[Math.min(D.r - 1, Math.floor(ty / BRH)) * D.c + Math.min(D.c - 1, Math.floor(tx / BRW))], fl = BUR_FL[rm ? rm.th : 0];
     ctx.fillStyle = (tx + ty) % 2 ? fl[0] : fl[1]; ctx.fillRect(X, Y, BT, BT);
+    if (G[ty * W + tx] === 4) { ctx.fillStyle = '#4a321a'; ctx.fillRect(X, Y, BT, BT); ctx.fillStyle = '#7a5a30'; ctx.fillRect(X + 2, Y + 2, BT - 4, BT - 4); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(X + 2, Y + BT / 2, BT - 4, 1); }
     if (ty > 0 && G[(ty - 1) * W + tx] === 1) { ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(X, Y, BT, 6); }
   }
   ctx.fillStyle = '#5a1f1f'; ctx.fillRect(6 * BT, D.r * BRH * BT - 2, 3 * BT, 5); text('AUSGANG ▼', 7.5 * BT, (D.r * BRH + 1) * BT + 6, 8, '#ffd23a');
-  for (const q of B.paints) { ctx.save(); ctx.translate(q.x, q.y); if (q.vert) ctx.rotate(Math.PI / 2); if (q.safe) ctx.rotate(.09); ctx.fillStyle = '#2a1a0a'; ctx.fillRect(-11, -8, 22, 16); ctx.fillStyle = q.c; ctx.fillRect(-9, -6, 18, 12); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(-9, -6, 18, 3); ctx.restore(); }
+  for (const q of B.paints) { if (q.taken) { ctx.save(); ctx.translate(q.x, q.y); if (q.vert) ctx.rotate(Math.PI / 2); ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.fillRect(-9, -6, 18, 12); ctx.restore(); continue; } ctx.save(); ctx.translate(q.x, q.y); if (q.vert) ctx.rotate(Math.PI / 2); if (q.safe) ctx.rotate(.09); ctx.fillStyle = '#2a1a0a'; ctx.fillRect(-11, -8, 22, 16); ctx.fillStyle = q.c; ctx.fillRect(-9, -6, 18, 12); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(-9, -6, 18, 3); ctx.restore(); }
   for (const f of B.furn) burFurn(f);
+  for (const dr of B.doors) if (!dr.open) icon('lock', dr.x + dr.w / 2, dr.y + dr.h / 2, 13, '#ffd23a', true);
+  for (const sl of B.sleepers) if (!sl.up) { ctx.fillStyle = '#e9b98a'; ctx.beginPath(); ctx.arc(sl.x, sl.y, 4.4, 0, TAU); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke(); const zf = (time * 9) % 12; ctx.globalAlpha = 1 - zf / 12; text('z', sl.x + 8 + zf * .4, sl.y - 6 - zf, 8, '#cfe'); ctx.globalAlpha = 1; if (sl.w > .15) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(sl.x - 9, sl.y - 13, 18, 3); ctx.fillStyle = sl.w > .6 ? '#ff5040' : '#ffd23a'; ctx.fillRect(sl.x - 8, sl.y - 12, 16 * Math.min(1, sl.w), 1.5); } }
+  if (B.panel) { const pn = B.panel, on = !B.panelOff; ctx.fillStyle = '#20242c'; ctx.fillRect(pn.x - 6, pn.y - 9, 9, 18); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.strokeRect(pn.x - 6, pn.y - 9, 9, 18); ctx.fillStyle = !on ? '#3ed45a' : B.alarmRung ? (Math.floor(time * 6) % 2 ? '#ff2a2a' : '#661010') : (Math.floor(time * 2) % 2 ? '#ff4040' : '#5a1818'); ctx.beginPath(); ctx.arc(pn.x - 1.5, pn.y - 5, 1.8, 0, TAU); ctx.fill(); ctx.fillStyle = '#9aa'; for (let i = 0; i < 3; i++) ctx.fillRect(pn.x - 4.5 + (i % 2) * 3.6, pn.y - 1 + (i > 1 ? 4 : 0) + (i === 0 ? -0 : 0), 2.4, 2.4); }
   for (const h of B.hides) burHide(h, B.hid === h);
   for (const q of B.loot) if (!q.got) { const bob = Math.sin(time * 4 + q.x) * 1.2; icon(q.e, q.x, q.y + bob, 15, q.e === 'gem' ? '#8ff' : q.e === 'ring' ? '#ffe27a' : '#fff', true); ctx.fillStyle = `rgba(255,240,150,${.35 + .35 * Math.sin(time * 6 + q.y)})`; ctx.fillRect(q.x + 5, q.y - 8 + bob, 2, 2); }
-  const cones = B.guards.map(g => burCone(B, g));
-  B.guards.forEach((g, i) => { const c = cones[i]; ctx.beginPath(); ctx.moveTo(c[0][0], c[0][1]); for (let j = 1; j < c.length; j++) ctx.lineTo(c[j][0], c[j][1]); ctx.closePath(); ctx.fillStyle = g.state === 'chase' ? 'rgba(255,70,50,.22)' : g.state === 'look' ? 'rgba(255,200,80,.2)' : 'rgba(255,240,170,.15)'; ctx.fill(); });
-  for (const g of B.guards) { ctx.save(); ctx.translate(g.x, g.y); ctx.scale(1.15, 1.15); drawPerson(0, 0, g.a, g.state === 'chase' ? '#8a2a2a' : '#2a3a6a', g.ph, false, false, '#d8a070', '#222'); ctx.restore(); ctx.fillStyle = '#fff6b0'; ctx.beginPath(); ctx.arc(g.x + Math.cos(g.a) * 9, g.y + Math.sin(g.a) * 9, 2.4, 0, TAU); ctx.fill();
+  const cones = B.guards.map(g => g.dog ? null : burCone(B, g));
+  B.guards.forEach((g, i) => { const c = cones[i]; if (!c) return; ctx.beginPath(); ctx.moveTo(c[0][0], c[0][1]); for (let j = 1; j < c.length; j++) ctx.lineTo(c[j][0], c[j][1]); ctx.closePath(); ctx.fillStyle = g.state === 'chase' ? 'rgba(255,70,50,.22)' : g.state === 'look' ? 'rgba(255,200,80,.2)' : 'rgba(255,240,170,.15)'; ctx.fill(); });
+  for (const g of B.guards) { if (g.dog) { drawDog(g); continue; } ctx.save(); ctx.translate(g.x, g.y); ctx.scale(1.15, 1.15); drawPerson(0, 0, g.a, g.state === 'chase' ? '#8a2a2a' : g.res ? '#6a4a8a' : '#2a3a6a', g.ph, false, false, '#d8a070', '#222'); ctx.restore(); ctx.fillStyle = '#fff6b0'; ctx.beginPath(); ctx.arc(g.x + Math.cos(g.a) * 9, g.y + Math.sin(g.a) * 9, 2.4, 0, TAU); ctx.fill();
     if (g.state !== 'patrol' || g.al > .1) text(g.state === 'chase' ? '!' : '?', g.x, g.y - 14, 13, g.state === 'chase' ? '#ff4040' : '#ffd23a'); }
   if (!B.hid) { ctx.save(); ctx.translate(I.x, I.y); ctx.scale(1.15, 1.15); drawPerson(0, 0, I.a, OUTFIT[outfit], I.ph, true); ctx.restore(); if (B.run) { ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(I.x, I.y, 22 + Math.sin(time * 12) * 3, 0, TAU); ctx.stroke(); } }
   // Dunkelheit mit Lichtkegeln
@@ -2599,13 +2642,14 @@ function renderBur() {
   d.save(); d.translate(vw / 2, vh / 2); d.scale(zb, zb); d.translate(-I.x, -I.y); d.globalCompositeOperation = 'destination-out';
   const lg = (x, y, r, a0, a1) => { const gr = d.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(0,0,0,${a0})`); gr.addColorStop(1, `rgba(0,0,0,${a1})`); return gr; };
   d.fillStyle = lg(I.x, I.y, 62, .75, 0); d.beginPath(); d.arc(I.x, I.y, 62, 0, TAU); d.fill();
-  B.guards.forEach((g, i) => { const c = cones[i]; d.fillStyle = lg(g.x, g.y, burRange(B), .96, .2); d.beginPath(); d.moveTo(c[0][0], c[0][1]); for (let j = 1; j < c.length; j++) d.lineTo(c[j][0], c[j][1]); d.closePath(); d.fill(); d.fillStyle = lg(g.x, g.y, 26, .55, 0); d.beginPath(); d.arc(g.x, g.y, 26, 0, TAU); d.fill(); });
+  B.guards.forEach((g, i) => { const c = cones[i]; if (!c) { d.fillStyle = lg(g.x, g.y, 30, .7, 0); d.beginPath(); d.arc(g.x, g.y, 30, 0, TAU); d.fill(); return; } d.fillStyle = lg(g.x, g.y, burRange(B), .96, .2); d.beginPath(); d.moveTo(c[0][0], c[0][1]); for (let j = 1; j < c.length; j++) d.lineTo(c[j][0], c[j][1]); d.closePath(); d.fill(); d.fillStyle = lg(g.x, g.y, 26, .55, 0); d.beginPath(); d.arc(g.x, g.y, 26, 0, TAU); d.fill(); });
   d.fillStyle = lg(7.5 * BT, D.r * BRH * BT + 10, 46, .6, 0); d.beginPath(); d.arc(7.5 * BT, D.r * BRH * BT + 10, 46, 0, TAU); d.fill();
   d.restore(); ctx.restore(); ctx.drawImage(burDk, 0, 0, vw, vh);
   // Oberflaeche
-  panel(vw / 2 - 150 * u, 6 * u, 300 * u, 40 * u); text(`🔦 ${B.sh.lv ? D.n : B.sh.n + ' (Einbruch)'} · STUFE ${B.lv}`, vw / 2, 19 * u, 14 * u, '#fff'); text('Tasche: $' + B.got, vw / 2, 37 * u, 16 * u, '#7dff7d');
+  panel(vw / 2 - 150 * u, 6 * u, 300 * u, 40 * u); text(`🔦 ${B.sh.lv ? D.n : B.sh.n + ' (Einbruch)'} · STUFE ${B.lv}`, vw / 2, 19 * u, 14 * u, '#fff'); text('Tasche: $' + B.got + (B.wt > 0 ? '  ·  ' + B.wt.toFixed(1) + ' kg' : ''), vw / 2, 37 * u, 16 * u, B.wt > 6 ? '#ffb347' : '#7dff7d');
   const bw = 150 * u; ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(vw / 2 - bw / 2, 52 * u, bw, 9 * u); ctx.fillStyle = B.al >= 1 ? '#ff3030' : B.al > .45 ? '#ff9a2a' : '#ffd23a'; ctx.fillRect(vw / 2 - bw / 2, 52 * u, bw * B.al, 9 * u); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeRect(vw / 2 - bw / 2, 52 * u, bw, 9 * u);
   text(B.hid ? 'VERSTECKT – unsichtbar' : B.al > .05 ? 'ENTDECKUNGS-GEFAHR' : 'unentdeckt', vw / 2, 72 * u, 11 * u, B.hid ? '#7fd0ff' : '#ddd');
+  if (B.panel && !B.panelOff) text(B.alarmRung ? 'ALARM!' : `ALARMANLAGE – noch ${Math.ceil(B.alarmT)} s`, vw / 2, 88 * u, 14 * u, Math.floor(time * 3) % 2 ? '#ff5050' : '#ffd23a');
   if (B.hint) text('AKTION: ' + B.hint, vw / 2, vh - 90 * u, 17 * u, '#ffe14d');
   if (B.msgT > 0) { ctx.globalAlpha = Math.min(1, B.msgT * 2); text(B.msg, vw / 2, vh * .3, 22 * u, B.caught > 0 ? '#ff5555' : '#fff'); ctx.globalAlpha = 1; }
   if (toastT > 0) { ctx.globalAlpha = Math.min(1, toastT * 2); text(toastTxt, vw / 2, vh * .22, 22 * u, toastCol); ctx.globalAlpha = 1; }
@@ -2721,8 +2765,9 @@ function drawRide() {
 
 // ---------- Vollbild-Minispiele: Dietrich-Timing und Geldzug ----------
 function startLock(lv, cb, opt) {
+  const kd = (opt && opt.kind) || '';
   const K = pickLv, V = LPV[pickV.cur] || LPV[0], need = 1 + Math.floor((lv - 1) / 7), w = clamp((.62 - .028 * lv + .018 * K) * V.w, .07, .8), spd = clamp((1.5 + lv * .13 - K * .03) * V.s, .9, 4.2);
-  mini = { type: 'lock', lv, cb, need, hits: 0, tries: 3 + V.t, ang: rnd(0, TAU), dir: 1, spd, w, za: rnd(0, TAU), state: 'play', t: 0, flash: 0, fcol: '#fff', tap: false, opt: opt || {}, msg: '' };
+  mini = { type: 'lock', lv, cb, need: need + (kd === 'num' ? 1 : 0), hits: 0, tries: Math.max(2, 3 + V.t - (kd === 'panel' ? 1 : 0)), ang: rnd(0, TAU), dir: 1, spd: spd * (kd === 'sec' ? 1.25 : kd === 'panel' ? 1.6 : kd === 'num' ? 1.1 : 1), w: w * (kd === 'sec' ? .7 : kd === 'panel' ? .8 : kd === 'num' ? .9 : 1), za: rnd(0, TAU), state: 'play', t: 0, flash: 0, fcol: '#fff', tap: false, opt: opt || {}, msg: '' };
   inputsReset(); tone(300, .08, 'square', .1);
 }
 function startHeist(dest) {
@@ -2794,7 +2839,7 @@ function renderMini() {
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(M.ang); ctx.strokeStyle = '#ffd23a'; ctx.lineWidth = 6 * u; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(R * 1.02, 0); ctx.stroke(); ctx.fillStyle = '#ffd23a'; ctx.beginPath(); ctx.arc(R * 1.02, 0, 7 * u, 0, TAU); ctx.fill(); ctx.restore();
     ctx.fillStyle = '#c9ccd8'; ctx.beginPath(); ctx.arc(cx, cy, 16 * u, 0, TAU); ctx.fill(); ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(cx, cy - 3 * u, 5 * u, 0, TAU); ctx.fill(); ctx.fillRect(cx - 2.5 * u, cy - 3 * u, 5 * u, 12 * u);
     if (M.flash > 0) { ctx.globalAlpha = M.flash * 1.6; ctx.fillStyle = M.fcol; ctx.beginPath(); ctx.arc(cx, cy, R * 1.1, 0, TAU); ctx.fill(); ctx.globalAlpha = 1; }
-    text(M.opt.heist ? '💰 GELDWAGEN – TRESORTÜR' : 'SCHLOSS AUFBRECHEN', cx, vh * .09, 26 * u, '#ffd200'); text(`Schlossstufe ${M.lv}   ·   dein Dietrich: Stufe ${pickLv}`, cx, vh * .09 + 32 * u, 16 * u, '#cfd3e6');
+    text(M.opt.title || (M.opt.heist ? '💰 GELDWAGEN – TRESORTÜR' : 'SCHLOSS AUFBRECHEN'), cx, vh * .09, 26 * u, '#ffd200'); text(`Schlossstufe ${M.lv}   ·   dein Dietrich: Stufe ${pickLv}`, cx, vh * .09 + 32 * u, 16 * u, '#cfd3e6');
     text(`Treffer ${M.hits}/${M.need}`, cx, vh * .84, 22 * u, '#fff'); for (let i = 0; i < 3; i++) { ctx.fillStyle = i < M.tries ? '#ffd23a' : '#444'; ctx.beginPath(); ctx.arc(cx - 44 * u + i * 44 * u, vh * .9, 11 * u, 0, TAU); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#000'; ctx.stroke(); }
     if (M.state === 'play') { ctx.globalAlpha = .75; text(coarse ? 'Tippe, wenn die Nadel im grünen Bereich ist' : 'Klick / Leertaste, wenn die Nadel im grünen Bereich ist', cx, vh * .955, 14 * u, '#cfd3e6'); ctx.globalAlpha = 1; }
     else text(M.msg, cx, cy + R * 1.5, 38 * u, M.state === 'ok' ? '#4f4' : '#f55');
