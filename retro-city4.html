@@ -1215,7 +1215,8 @@ function burgleBtn() {
   if (t.lv > pickLv + 6) { toast(`Dein Dietrich (Stufe ${pickLv}) ist zu schwach – mindestens Stufe ${t.lv - 6} nötig (Kiosk)`, '#ff0', 3); return true; }
   inputsReset();
   startLock(t.lv, ok => {
-    if (ok) { const v = Math.round((t.lv * t.lv * 40 + t.lv * 150) * rnd(.7, 1.3)); money += v; t.cd = ST.time + 600; ST.miss++; toast(`EINBRUCH GEGLÜCKT  +$${v}`, '#4f4', 3); jingle(true); if (Math.random() < .25) { const it = pick(ITEMS); inv[it.k] = Math.min(9, inv[it.k] + 1); renderHot(); toast(`+$${v}  und ${it.ic} ${it.n}`, '#4f4', 3); } if (copNear(520)) addHeat(5 + t.lv * .8); if (cars.some(c => c.t.police && !c.wreck && dist(c.x, c.y, p.x, p.y) < 450)) addHeat(30); }
+    if (ok) { const hs = { k: 'tgt', t, x: t.x, y: t.y, dir: 0, noOff: true, empty: 0, n: t.k === 'h' ? 'HAUS' : t.k === 's' ? 'LADEN' : 'BÜRO' }; if (t.k === 'h') hs.lv = t.lv <= 5 ? 1 : t.lv <= 12 ? 2 : 3; else hs.blv = t.lv >= 12 ? 2 : 1;
+      ST.miss++; jingle(true); toast('Schloss geknackt – du bist drin!', '#4f4', 2); if (copNear(520)) addHeat(5 + t.lv * .8); enterBur(hs); }
     else { t.wait = ST.time + 10 + (t.lv - 1) * 31; toast('Aufbruch gescheitert – Schloss gesperrt für ' + fmtT(t.wait - ST.time), '#f66', 3); if (t.alarm) { addHeat(Math.random() < .5 ? 22 : 42, true); toast('ALARM! Die Polizei ist gerufen!', '#f33', 3); tone(900, .6, 'square', .15, 500); } }
   }, { alarm: t.alarm });
   return true;
@@ -1450,7 +1451,7 @@ function updNightLife(dt) {                       // nachts stehen mehr leere Au
     if (ex.length < 22) {
       if (Math.random() < .6 && curb.length) { const s = pick(curb), x = (s[0] + .5) * TS + (s[2] ? rnd(-12, 12) : 0), y = (s[1] + .5) * TS + (s[2] ? 0 : rnd(-12, 12));
         if (dist(x, y, T.x, T.y) > 380 && !cars.some(o => dist(o.x, o.y, x, y) < 90) && !shops.some(h => dist(h.x, h.y, x, y) < 90)) { const c = newCar(pick(CT.filter(q => !q.rare))); c.x = x; c.y = y; c.a = (s[2] ? 0 : Math.PI / 2) + (Math.random() < .5 ? 0 : Math.PI); c.nl = true; cars.push(c); } }
-      else { const fs = shops.filter(q => q.k === 'ferry'); if (fs.length) { const sh = pick(fs), w = waterSpot(sh.x, sh.y); if (w && dist(w.x, w.y, T.x, T.y) > 300) { const c = newCar(BOAT); c.col = pick(BOAT_C); c.x = w.x; c.y = w.y; c.a = rnd(0, TAU); c.drv = null; c.nl = true; cars.push(c); } } }
+      else { const fs = shops.filter(q => q.k === 'ferry'); if (fs.length) { const sh = pick(fs), w = waterSpot(sh.x, sh.y); if (w && dist(w.x, w.y, T.x, T.y) > 300) { const c = newCar(pick(BOATS)); c.col = pick(BOAT_C); c.x = w.x; c.y = w.y; c.a = rnd(0, TAU); c.drv = null; c.nl = true; cars.push(c); } } }
     }
   } else for (const c of ex) if (c.drv == null && !c.wreck && c.own == null && dist(c.x, c.y, T.x, T.y) > 480) c.gone = true;
 }
@@ -2539,9 +2540,9 @@ function exitBur(caught) {
   const I = inside, B = I.bur, sh = I.sh; inputsReset(); let msg;
   if (caught) { const f = Math.min(money, 100 * B.lv); money -= f; addHeat(15 + 15 * B.lv, true); msg = `ERWISCHT! Beute weg, Strafe -$${f}`; }
   else { if (B.got > 0) { money += B.got; ST.burg = (ST.burg || 0) + 1; msg = `Entkommen mit $${B.got}!`; jingle(true); } else msg = 'Du bist wieder draußen.'; }
-  if (B.got > 0 || caught) sh.empty = ST.time + 600;
+  if (B.got > 0 || caught) { sh.empty = ST.time + 600; if (sh.t) sh.t.cd = sh.empty; }
   tone(880, .1, 'sine', .1); tone(660, .12, 'sine', .1, 0, .1); save();
-  fadeTo(() => { inside = null; p.x = sh.x + DX[sh.dir] * 26; p.y = sh.y + DY[sh.dir] * 26; if (!footFree(p.x, p.y)) { p.x = sh.x; p.y = sh.y; } shopLock = sh; camX = p.x; camY = p.y; toast(msg, caught ? '#f55' : '#ffd200', 3.2); });
+  fadeTo(() => { inside = null; p.x = sh.x + DX[sh.dir] * (sh.noOff ? 0 : 26); p.y = sh.y + DY[sh.dir] * (sh.noOff ? 0 : 26); if (!footFree(p.x, p.y)) { p.x = sh.x; p.y = sh.y; } shopLock = sh.noOff ? null : sh; camX = p.x; camY = p.y; toast(msg, caught ? '#f55' : '#ffd200', 3.2); });
 }
 function burCone(B, g) {
   const R = burRange(B), fov = 1, pts = [[g.x, g.y]], N = 22;
@@ -2874,10 +2875,10 @@ function buildWorld(z, carry) {
   }
   bank = curb.reduce((b, q) => { const x = (q[0] + .5) * TS, y = (q[1] + .5) * TS, d = dist(x, y, W / 2, W / 2); return !b || d < b.d ? { x, y, d } : b; }, null);   // Bank im Zentrum
   for (const sh of shops) if (sh.k === 'ferry') for (let i = 0; i < 3; i++) { const w = waterSpot(sh.x, sh.y); if (w) { const c = newCar(pick(BOATS)); c.col = pick(BOAT_C); c.x = w.x; c.y = w.y; c.a = rnd(0, TAU); c.drv = null; cars.push(c); } }   // Boote liegen am Hafen
-  for (let n = 0, tr = 0; n < (z ? 4 : 10) && tr < 400; tr++) {                                                        // Boote im Meer / See
+  for (let n = 0, tr = 0; n < (z ? 5 : 14) && tr < 600; tr++) {                                                        // Boote im Meer / See
     const bx = rint(0, NB - 1), by = rint(0, NB - 1); if (landB(bx, by)) continue; const x = (PER * bx + rnd(3, 8)) * TS, y = (PER * by + rnd(3, 8)) * TS;
     if (!isWater(x, y) || !isWater(x + 70, y) || !isWater(x - 70, y) || !isWater(x, y + 70) || !isWater(x, y - 70)) continue;
-    const c = newCar(BOAT); c.x = x; c.y = y; c.a = rnd(0, TAU); if (n % 3 !== 2) c.drv = 'boat'; cars.push(c); n++;
+    const bt = BOATS[(n * 5 + rint(0, 3)) % BOATS.length], c = newCar(bt); c.col = pick(BOAT_C); c.x = x; c.y = y; c.a = rnd(0, TAU); if (n % 3 !== 2) c.drv = 'boat'; cars.push(c); n++;
   }
   if (z === 0) {
     for (const [r, c] of [[1, 1], [3, 2], [4, 3], [1, 3], [6, 2], [1, 6]]) ramps.push({ x: (PER * c + 6) * TS, y: (PER * r + 1) * TS + 24, a: 0 });                 // Rampen (waagerechte Straßen)
@@ -2894,7 +2895,7 @@ function loop(ts) {
   render(); if (photoReq && --photoReq === 0) takePhoto();
 }
 init(); requestAnimationFrame(loop);
-if (location.hash === '#debug') window.__rc = { crime, useItem, CT, POLBOAT, newCar, aiPlace, get seen() { return seen; }, get unseenT() { return unseenT; }, get lastKnown() { return lastKnown; }, get pend() { return pend; }, get heatV() { return heat; }, get tunnels() { return tunnels; }, get summits() { return summits; }, BOATS, shopBreak, robBtn, pedNear, updInside, updBur, burGen, enterBur, get inside() { return inside; }, get shops() { return shops; }, dmgCar, cash, sigs, lightState, get mission() { return mission; }, get fog() { return fog; }, set fog(v) { fog = v; }, get snow() { return snow; }, set snow(v) { snow = v; }, shots, useBtn, blockType, curb, openMenu, p, cars, peds, shops, inp, S, ramps, mc, tileAt, startGame, update, render, island, landB, cam: () => [camX, camY, zoom], setCam: (x, y) => { camX = x; camY = y; }, get started() { return started; }, get money() { return money; }, set money(v) { money = v; }, get mission() { return mission; }, startMission, get npc() { return npc; }, get heistBonus() { return heistBonus; }, startLock, startHeist, get mini() { return mini; }, tgts, get pickLv() { return pickLv; }, set pickLv(v) { pickLv = v; }, get heistReady() { return heistReady; }, set heistReady(v) { heistReady = v; }, npcBtn, burgleBtn, buildWorld, fetchCar, get zone() { return ZONE; }, get lastOwn() { return lastOwn; }, set lastOwn(v) { lastOwn = v; }, owned, startRide, arriveAt, startAccident, helpers, tanks, jets, bombs, get chaos() { return chaos; }, set chaos(v) { chaos = v; }, wp, ST, enterShop, exitShop, startRide, get inside() { return inside; }, get ride() { return ride; }, get dead() { return dead; }, tramStops, tram: () => tram, openMenuX: () => menu, wasted, busted, respawn, reviveNow, inv, useItem, startJob, endJob, renderHot, hosp: () => hosp, dump: () => dump, get jobSt() { return jobSt; }, get stars() { return stars; }, get heat() { return heat; }, get armor() { return p.armor; }, addHeat, toggleBig: () => { bigMap = !bigMap; $('mapHit').classList.toggle('big', bigMap); }, W, N, TS, PER, NB };
+if (location.hash === '#debug') window.__rc = { get miniNow() { return mini; }, crime, useItem, CT, POLBOAT, newCar, aiPlace, get seen() { return seen; }, get unseenT() { return unseenT; }, get lastKnown() { return lastKnown; }, get pend() { return pend; }, get heatV() { return heat; }, get tunnels() { return tunnels; }, get summits() { return summits; }, BOATS, shopBreak, robBtn, pedNear, updInside, updBur, burGen, enterBur, get inside() { return inside; }, get shops() { return shops; }, dmgCar, cash, sigs, lightState, get mission() { return mission; }, get fog() { return fog; }, set fog(v) { fog = v; }, get snow() { return snow; }, set snow(v) { snow = v; }, shots, useBtn, blockType, curb, openMenu, p, cars, peds, shops, inp, S, ramps, mc, tileAt, startGame, update, render, island, landB, cam: () => [camX, camY, zoom], setCam: (x, y) => { camX = x; camY = y; }, get started() { return started; }, get money() { return money; }, set money(v) { money = v; }, get mission() { return mission; }, startMission, get npc() { return npc; }, get heistBonus() { return heistBonus; }, startLock, startHeist, get mini() { return mini; }, tgts, get pickLv() { return pickLv; }, set pickLv(v) { pickLv = v; }, get heistReady() { return heistReady; }, set heistReady(v) { heistReady = v; }, npcBtn, burgleBtn, buildWorld, fetchCar, get zone() { return ZONE; }, get lastOwn() { return lastOwn; }, set lastOwn(v) { lastOwn = v; }, owned, startRide, arriveAt, startAccident, helpers, tanks, jets, bombs, get chaos() { return chaos; }, set chaos(v) { chaos = v; }, wp, ST, enterShop, exitShop, startRide, get inside() { return inside; }, get ride() { return ride; }, get dead() { return dead; }, tramStops, tram: () => tram, openMenuX: () => menu, wasted, busted, respawn, reviveNow, inv, useItem, startJob, endJob, renderHot, hosp: () => hosp, dump: () => dump, get jobSt() { return jobSt; }, get stars() { return stars; }, get heat() { return heat; }, get armor() { return p.armor; }, addHeat, toggleBig: () => { bigMap = !bigMap; $('mapHit').classList.toggle('big', bigMap); }, W, N, TS, PER, NB };
 })();
 </script>
 </body>
