@@ -76,6 +76,7 @@ body.inlock #fire,body.inlock #use,body.inlock #stick,body.inlock #wheel{display
 .hb .hk{position:absolute;left:4px;top:1px;font:bold 10px "Courier New",monospace;opacity:.7}
 .hb:active{background:rgba(255,210,0,.55)}
 #radio{display:none!important}
+body.bigmap #hot,body.bigmap #phone,body.bigmap #cog,body.bigmap #rc,body.bigmap #stick,body.bigmap #wheel{display:none!important}
 
 /* ===== Neues Design ===== */
 .ei{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.2em;flex:none}
@@ -2203,6 +2204,7 @@ function hud() {
   const u = Math.max(.8, Math.min(vw, vh) / 700), ms = clamp(Math.min(vw, vh) * .26, 96, 160), mx = 14, my = 14, c = p.car, P0 = P(), hp = c ? c.hp / c.hpm * 100 : p.hp;
   if (hp < 35) vig('rgba(220,20,20,A)', .3 + .2 * Math.sin(time * 6)); else if (stars >= 3) vig(Math.floor(time * 4) % 2 ? 'rgba(220,30,30,A)' : 'rgba(40,80,255,A)', .22);
   document.documentElement.style.setProperty('--ms', (ms + 24) + 'px');
+  document.body.classList.toggle('bigmap', !!bigMap);
   if (bigMap) { drawBigMap(); return; }
   // Minikarte (Tipp = große Karte)
   ctx.save(); rr(mx, my, ms, ms, 14); ctx.clip(); ctx.fillStyle = '#000'; ctx.fillRect(mx, my, ms, ms);
