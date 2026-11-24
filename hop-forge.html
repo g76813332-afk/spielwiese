@@ -83,7 +83,7 @@ body.dark #title h1{color:#ffc933}
 <div id="title" class="scr on"><h1>HOP<br>FORGE<small>BUILD · JUMP · SHARE</small></h1>
 <p>Baue eigene Hüpf-Level mit Portalen, Schaltern, Gegnern, Items und Fallen, beweise sie und teile sie per Link.</p>
 <div class="row"><button class="btn g big" id="bBuild">Bauen</button><button class="btn y big" id="bPlay">Spielen</button></div>
-<div class="row"><button class="btn gr" id="bCode">Level-Link einfügen</button><button class="btn gr" id="bMute">Ton an</button><button class="btn gr" id="bDark">Dark Mode: aus</button><button class="btn gr" id="bSkin">Held</button><button class="btn gr" id="bName">Name</button><button class="btn gr" id="bFx">Effekte</button><button class="btn gr" id="bPets">Pets</button><a class="btn p" href="https://discord.gg/84mWWpKKh" target="_blank" rel="noopener" style="text-decoration:none">Discord</a></div></div>
+<div class="row"><button class="btn gr" id="bCode">Level-Link einfügen</button><button class="btn gr" id="bMute">Ton an</button><button class="btn gr" id="bDark">Dark Mode: aus</button><button class="btn gr" id="bSkin">Held</button><button class="btn gr" id="bName">Name</button><button class="btn gr" id="bFx">Effekte</button><a class="btn p" href="https://discord.gg/84mWWpKKh" target="_blank" rel="noopener" style="text-decoration:none">Discord</a></div></div>
 <div id="editor" class="scr">
 <div id="etop"></div>
 <div id="epal"><div id="ov"><canvas id="ovc"></canvas><div id="ovt"></div></div><div id="tabs"></div><div id="items"></div></div></div>
@@ -116,12 +116,12 @@ const VALID = new Set(Object.keys(NAME).map(Number).concat([0]));
 const RULES = [['hp', 'Herzen am Start', 1, 9, 1, 2], ['mhp', 'Maximale Herzen', 1, 9, 1, 3], ['edmg', 'Schaden durch Gegner (Herzen)', 1, 3, 1, 1], ['inv', 'Schutzzeit nach Treffer', 0, 50, 2, 18],
   ['jump', 'Sprungkraft', 40, 220, 10, 100], ['spd', 'Lauftempo', 40, 220, 10, 100], ['grav', 'Schwerkraft', 20, 250, 10, 100], ['mom', 'Griffigkeit (niedrig = rutschig)', 20, 300, 10, 100], ['size', 'Größe der Figur', 50, 200, 10, 100],
   ['dj', 'Extra-Sprünge in der Luft', 0, 3, 1, 1], ['wj', 'Wandsprung', 0, 1, 1, 1], ['dash', 'Luft-Dashes pro Sprung', 0, 3, 1, 1], ['atk', 'Angriff (Hieb)', 0, 1, 1, 1], ['pound', 'Stampfer', 0, 1, 1, 1], ['dmg', 'Angriffsschaden', 1, 5, 1, 1],
-  ['espd', 'Gegner-Tempo', 40, 250, 10, 100], ['need', 'Diamanten fürs Ziel (0 = egal)', 0, 40, 1, 0], ['boss', 'Ziel erst nach Boss-Sieg', 0, 1, 1, 0], ['pets', 'Pets erlaubt', 0, 1, 1, 1]];
+  ['espd', 'Gegner-Tempo', 40, 250, 10, 100], ['need', 'Diamanten fürs Ziel (0 = egal)', 0, 40, 1, 0], ['boss', 'Ziel erst nach Boss-Sieg', 0, 1, 1, 0]];
 const RULE_PRESETS = [['Normal', {}], ['Mond', { grav: 40, jump: 110 }], ['Eis', { mom: 30 }], ['Turbo', { spd: 160, jump: 115, dash: 2 }], ['Riese', { size: 170, hp: 3 }], ['Mini', { size: 60, jump: 90 }], ['Hardcore', { hp: 1, mhp: 1, edmg: 2, espd: 140 }], ['Puzzle', { atk: 0, pound: 0, dj: 0, dash: 0 }]];
 const PCT = new Set(['jump', 'spd', 'grav', 'mom', 'size', 'espd']), TOG = new Set(['wj', 'atk', 'pound', 'boss', 'pets']);
 const fmtRule = (k, v) => PCT.has(k) ? v + '%' : TOG.has(k) ? (v ? 'an' : 'aus') : k === 'inv' ? (v / 10).toFixed(1) + ' s' : k === 'need' && !v ? 'egal' : v;
 function mkRules(ru) { const R = {}; for (const [k, , mn, mx, , df] of RULES) R[k] = clamp(ru && ru[k] != null ? +ru[k] : df, mn, mx);
-  return { hp: R.hp, mhp: Math.max(R.hp, R.mhp), edmg: R.edmg, inv: R.inv / 10, jump: R.jump / 100, spd: R.spd / 100, grav: R.grav / 100, mom: R.mom / 100, size: R.size / 100, dj: R.dj, wj: R.wj, dash: R.dash, atk: R.atk, pound: R.pound, dmg: R.dmg, espd: R.espd / 100, need: R.need, boss: R.boss, pets: R.pets }; }
+  return { hp: R.hp, mhp: Math.max(R.hp, R.mhp), edmg: R.edmg, inv: R.inv / 10, jump: R.jump / 100, spd: R.spd / 100, grav: R.grav / 100, mom: R.mom / 100, size: R.size / 100, dj: R.dj, wj: R.wj, dash: R.dash, atk: R.atk, pound: R.pound, dmg: R.dmg, espd: R.espd / 100, need: R.need, boss: R.boss }; }
 // ---------- Block- & Item-Einstellungen (pro Level) ----------
 const BPROPS = [['ice_spd', 'Tempo auf Eis', 40, 300, 10, 100, 'ice'], ['ice_acc', 'Anlauf auf Eis (niedrig = träge)', 2, 100, 2, 22, 'ice'], ['ice_fr', 'Bremsen auf Eis (niedrig = rutscht weit)', 0, 100, 1, 8, 'ice'],
   ['spring_pw', 'Federkraft', 40, 250, 10, 100, 'spring'], ['conv_spd', 'Band-Geschwindigkeit', 20, 300, 5, 85, 'conv'], ['wind_pw', 'Luftstrom-Stärke', 20, 300, 10, 100, 'wind'],
@@ -608,7 +608,7 @@ function updCust(e, dt) {
     if (ty === 0 && e.gr && e.st === 'move') { const ax = Math.floor((e.x + e.w / 2 + e.dir * (e.w / 2 + 6)) / TS), ay = Math.floor((e.y + e.h + 4) / TS); if (!isSolid(ax, ay) && tileAt(ax, ay) !== T.WATER && !SOLID.has(tileAt(ax, ay))) e.dir *= -1; }
     if (e.y > LH * TS + 100) e.dead = true; }
 }
-function mkPet() { const d = PET_SEL >= 0 ? PETS[PET_SEL] : null; if (!d || !G.R.pets) return null; const w = 18 * d.sz / 100; return { def: d, x: G.p.x - 20, y: G.p.y, w, h: w, vx: 0, vy: 0, face: 1, cd: d.cd * .5, scan: 0, gr: false, ph: 0 }; }
+function mkPet() { const d = PET_SEL >= 0 ? PETS[PET_SEL] : null; return null; /* Pets sind vorerst aus */ const w = 18 * d.sz / 100; return { def: d, x: G.p.x - 20, y: G.p.y, w, h: w, vx: 0, vy: 0, face: 1, cd: d.cd * .5, scan: 0, gr: false, ph: 0 }; }
 function updPet(dt) {
   const p = G.p, pt = G.pet;
   for (const q of G.ps) { q.x += q.vx * dt; q.y += q.vy * dt; q.l -= dt; if (isSolid(Math.floor((q.x + 4) / TS), Math.floor((q.y + 4) / TS))) q.l = 0; for (const e of G.ents) if (q.l > 0 && !e.dead && !e.flip && e.t !== 'plat' && e.t !== 'cannon' && e.t !== 'shot' && q.x < e.x + e.w && q.x + 8 > e.x && q.y < e.y + e.h && q.y + 8 > e.y) { damageEnt(e, q.dm, 'pet'); q.l = 0; } } G.ps = G.ps.filter(q => q.l > 0);
@@ -1057,7 +1057,7 @@ function fxDialog(back) {
     $('fv').oninput = () => { FX.vol = +$('fv').value; $('fvv').textContent = FX.vol + '%'; sv(); }; $('fv').onchange = () => SFX.coin();
     $('fb').onclick = () => { FX.bub = FX.bub ? 0 : 1; $('fb').textContent = 'Sprechblasen (BAM!, KRACH! …): ' + (FX.bub ? 'an' : 'aus'); sv(); }; $('fs').onclick = () => { FX.shk = FX.shk ? 0 : 1; $('fs').textContent = 'Bildschirmwackeln: ' + (FX.shk ? 'an' : 'aus'); sv(); };
     $('fo').onclick = () => { closeModal(); if (back) back(); }; }); }
-$('bName').onclick = () => { SFX.click(); nameDialog(false); }; $('bPets').onclick = () => { SFX.click(); petsDialog(); }; $('bFx').onclick = () => { SFX.click(); fxDialog(); }; updName();
+$('bName').onclick = () => { SFX.click(); nameDialog(false); }; $('bFx').onclick = () => { SFX.click(); fxDialog(); }; updName();
 try { if (!localStorage.getItem('hb_name')) setTimeout(() => nameDialog(true), 500); } catch (e) {}
 $('pause').onclick = pauseGame;
 $('modal').addEventListener('pointerdown', e => { if (e.target === $('modal') && !(G && G.paused) && !(G && G.state === 'win')) closeModal(); });
