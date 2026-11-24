@@ -35,7 +35,7 @@ body.inroom.inbur #gas{display:flex}
 #cog{top:calc(env(safe-area-inset-top) + 120px);right:12px;width:54px;height:54px;font-size:26px;background:rgba(40,40,60,.7)}
 #nit{right:calc(var(--G) + env(safe-area-inset-right));bottom:calc(var(--G)*3 + var(--S)*2 + env(safe-area-inset-bottom));width:calc(var(--S)*.8);height:calc(var(--S)*.8);background:rgba(60,160,255,.35)}
 #radio{right:calc(var(--G)*3 + var(--S)*2 + env(safe-area-inset-right));bottom:calc(var(--G)*3 + var(--S)*1.55 + env(safe-area-inset-bottom));width:calc(var(--S)*.6);height:calc(var(--S)*.6);font-size:12px}
-#mapHit{position:absolute;left:14px;top:14px;width:130px;height:130px;z-index:5}#mapHit.big{inset:0;width:auto;height:auto}
+#mapHit{position:absolute;left:14px;top:14px;width:var(--ms,130px);height:var(--ms,130px);z-index:5}#mapHit.big{inset:0;width:auto;height:auto}
 #start,#menu{position:absolute;inset:0;background:rgba(0,0,0,.9);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:16px;gap:10px}
 #menu{display:none}
 #start h1{margin:0;font-size:clamp(34px,9vmin,72px);color:#ffd200;text-shadow:4px 4px 0 #c0392b;letter-spacing:4px}
@@ -546,6 +546,13 @@ const HOME_FL = [['#c9a878', '#bf9d6c'], ['#8a8a92', '#7f7f87'], ['#4a4a52', '#4
 const OUTFIT = ['#ffcc00', '#e04040', '#3a7bd5', '#58b84b', '#c36bd6', '#f4f4f4', '#222233'], OUTFIT_N = ['Gelb', 'Rot', 'Blau', 'Grün', 'Lila', 'Weiß', 'Schwarz'];
 const RUG = ['#ffffff', '#d94a4a', '#4a7ad9', '#4ad98a', '#d9c04a', '#8a4ad9'], RUG_N = ['Weiß', 'Rot', 'Blau', 'Grün', 'Gelb', 'Violett'];
 const BOAT_C = ['#f4f4f4', '#e04040', '#3a7bd5', '#ffcc00', '#58b84b', '#222233'];
+const LPV = [
+  { n: 'Standard-Dietrich', pr: 0, w: 1, s: 1, t: 0, d: 'einfach, aber zuverlässig' },
+  { n: 'Profi-Set', pr: 1500, w: 1.25, s: 1, t: 0, d: 'Trefferzone 25 % größer' },
+  { n: 'Bump-Key', pr: 2500, w: 1, s: 1, t: 2, d: '+2 Versuche pro Schloss' },
+  { n: 'Elektro-Pick', pr: 4000, w: 1, s: .7, t: 0, d: 'Zeiger 30 % langsamer' },
+  { n: 'Meister-Set', pr: 9000, w: 1.2, s: .8, t: 1, d: 'größere Zone, langsamer, +1 Versuch' }];
+let pickV = { own: [true, false, false, false, false], cur: 0 };
 let lastOwn = -1, pickLv = 1, heistReady = 0, heistBonus = false, mini = null, npc = null;
 const tgts = [], bld = [];
 let hosp = null, dump = null, jobSt = null, jobCar = null;
@@ -562,8 +569,8 @@ let lastMoney = 300, curTer = null, terT = 30, bg = null, bank = null, photoReq 
 const S = { lefty: false, size: 1, auto: false, aim: true, rain: true, night: true, vib: true, drive: 'wheel', gangs: false };
 let nit = 1, drift = 0, dscore = 0, dgrace = 0, rain = 0, rainT = 40, rainTarget = 0, fog = 0, fogTarget = 0, snow = 0, snowTarget = 0, mstreak = 0, flash = 0, bigMap = false, saveT = 15; const rings = [];
 function buzz(ms) { if (S.vib && navigator.vibrate) try { navigator.vibrate(ms); } catch (e) {} }
-function save() { try { localStorage.setItem('rc3', JSON.stringify({ m: money, o: owned.map(o => ({ ti: o.ti, up: o.up, col: o.col, st: o.st, ne: o.ne })), w: wp.map(w => ({ own: w.own, ammo: w.ammo })), s: S, st: ST, t: ter.map(t => t.own ? 1 : 0), iv: inv, lo: lastOwn, pl: pickLv, hr: heistReady, hb: heistBonus, hm: home, of: outfit, bt: boat ? { col: boat.col, mot: boat.mot || 0 } : null })); } catch (e) {} }
-function load() { try { const d = JSON.parse(localStorage.getItem('rc3') || 'null'); if (!d) return; money = d.m; d.w.forEach((w, i) => Object.assign(wp[i], w)); (d.o || []).forEach(o => owned.push({ ti: o.ti, up: Object.assign({ e: 0, t: 0, a: 0, n: 0, w: 0 }, o.up), col: o.col, st: o.st, ne: o.ne, car: null })); Object.assign(S, d.s || {}); Object.assign(ST, d.st || {}); (d.t || []).forEach((v, i) => { if (v && ter[i]) { ter[i].own = true; ter[i].str = 0; } }); if (d.iv) Object.assign(inv, d.iv); if (d.lo != null) lastOwn = d.lo; if (d.pl) pickLv = d.pl; if (d.hr != null) heistReady = d.hr; heistBonus = !!d.hb; home = d.hm || null; outfit = d.of || 0; boat = d.bt ? { col: d.bt.col, mot: d.bt.mot || 0, car: null } : null; lastMoney = money; } catch (e) {} }
+function save() { try { localStorage.setItem('rc3', JSON.stringify({ m: money, o: owned.map(o => ({ ti: o.ti, up: o.up, col: o.col, st: o.st, ne: o.ne })), w: wp.map(w => ({ own: w.own, ammo: w.ammo })), s: S, st: ST, t: ter.map(t => t.own ? 1 : 0), iv: inv, lo: lastOwn, pl: pickLv, hr: heistReady, hb: heistBonus, hm: home, of: outfit, bt: boat ? { col: boat.col, mot: boat.mot || 0, ty: boat.ty == null ? 3 : boat.ty } : null, pv: pickV })); } catch (e) {} }
+function load() { try { const d = JSON.parse(localStorage.getItem('rc3') || 'null'); if (!d) return; money = d.m; d.w.forEach((w, i) => Object.assign(wp[i], w)); (d.o || []).forEach(o => owned.push({ ti: o.ti, up: Object.assign({ e: 0, t: 0, a: 0, n: 0, w: 0 }, o.up), col: o.col, st: o.st, ne: o.ne, car: null })); Object.assign(S, d.s || {}); Object.assign(ST, d.st || {}); (d.t || []).forEach((v, i) => { if (v && ter[i]) { ter[i].own = true; ter[i].str = 0; } }); if (d.iv) Object.assign(inv, d.iv); if (d.lo != null) lastOwn = d.lo; if (d.pl) pickLv = d.pl; if (d.hr != null) heistReady = d.hr; heistBonus = !!d.hb; home = d.hm || null; outfit = d.of || 0; boat = d.bt ? { col: d.bt.col, mot: d.bt.mot || 0, ty: d.bt.ty == null ? 3 : d.bt.ty, car: null } : null; if (d.pv && d.pv.own) pickV = { own: d.pv.own.slice(0, LPV.length), cur: d.pv.cur || 0 }; lastMoney = money; } catch (e) {} }
 function applyS() { document.body.classList.toggle('lefty', S.lefty); document.documentElement.style.setProperty('--k', S.size); }
 
 const cir = (x, y, r) => `M${x - r} ${y}a${r} ${r} 0 1 0 ${2 * r} 0a${r} ${r} 0 1 0 ${-2 * r} 0`;
@@ -1299,9 +1306,13 @@ $('mList').addEventListener('click', e => {
 });
 $('mX').addEventListener('click', closeMenu);
 $('phone').innerHTML = ei('phone'); $('cog').innerHTML = ei('gear');
+function pickVarMenu(back) {
+  return { t: '🔧 DIETRICH-VARIANTEN', rows: () => [{ a: 'back', t: '⬅ Zurück zum Laden' }, ...LPV.map((v, i) => ({ a: 'v' + i, t: `${v.n} – ${v.d}${pickV.cur === i ? '  ✔ ausgerüstet' : ''}`, pr: pickV.own[i] ? undefined : v.pr, off: pickV.cur === i }))],
+    act: a => { if (a === 'back') { openMenu(back()); return; } const i = +a.slice(1), v = LPV[i]; if (!v) return; if (!pickV.own[i]) { if (money < v.pr) return; money -= v.pr; pickV.own[i] = true; pickV.cur = i; save(); return v.n + ' gekauft und ausgerüstet'; } pickV.cur = i; save(); return v.n + ' ausgerüstet'; } };
+}
 function gunMenu(mk, title) {
-  return { t: title, rows: () => [...WP.map((w, i) => { const s = wp[i]; return s.own ? { a: 'a' + i, t: `${w.n}: +${w.pack} Schuss (${s.ammo})`, pr: Math.round(w.pp * mk) } : (w.req && ST.miss < w.req) ? { a: 'x' + i, t: `${w.n} – gesperrt (noch ${w.req - ST.miss} Aufträge/Fahrten)`, off: true } : { a: 'b' + i, t: `${w.n} kaufen (+${w.pack} Schuss)`, pr: Math.round(w.price * mk) }; }), { a: 'tnt', t: `💥 TNT-Paket (${inv.tnt || 0} im Rucksack) – für den Geldzug`, pr: 3000 }],
-    act: a => { if (a === 'tnt') { if (money < 3000) return; money -= 3000; inv.tnt = (inv.tnt || 0) + 1; save(); return 'TNT gekauft!'; } const i = +a.slice(1), w = WP[i]; if (a[0] === 'x') return; const pr = Math.round((a[0] === 'b' ? w.price : w.pp) * mk); if (money < pr) return; money -= pr; if (a[0] === 'b') { wp[i].own = true; wp[i].ammo += w.pack; return w.n + ' gekauft!'; } wp[i].ammo += w.pack; return 'Munition aufgefüllt'; } };
+  return { t: title, rows: () => [...WP.map((w, i) => { const s = wp[i]; return s.own ? { a: 'a' + i, t: `${w.n}: +${w.pack} Schuss (${s.ammo})`, pr: Math.round(w.pp * mk) } : (w.req && ST.miss < w.req) ? { a: 'x' + i, t: `${w.n} – gesperrt (noch ${w.req - ST.miss} Aufträge/Fahrten)`, off: true } : { a: 'b' + i, t: `${w.n} kaufen (+${w.pack} Schuss)`, pr: Math.round(w.price * mk) }; }), { a: 'tnt', t: `💥 TNT-Paket (${inv.tnt || 0} im Rucksack) – für den Geldzug`, pr: 3000 }, { a: 'lp', t: `🔧 Dietrich-Varianten (jetzt: ${LPV[pickV.cur].n})` }],
+    act: a => { if (a === 'lp') { openMenu(pickVarMenu(() => gunMenu(mk, title))); return; } if (a === 'tnt') { if (money < 3000) return; money -= 3000; inv.tnt = (inv.tnt || 0) + 1; save(); return 'TNT gekauft!'; } const i = +a.slice(1), w = WP[i]; if (a[0] === 'x') return; const pr = Math.round((a[0] === 'b' ? w.price : w.pp) * mk); if (money < pr) return; money -= pr; if (a[0] === 'b') { wp[i].own = true; wp[i].ammo += w.pack; return w.n + ' gekauft!'; } wp[i].ammo += w.pack; return 'Munition aufgefüllt'; } };
 }
 const PAINTN = [['Gelb', '#f2c200'], ['Rot', '#d8281e'], ['Blau', '#2e7dd1'], ['Grün', '#44b04a'], ['Orange', '#ff7a00'], ['Lila', '#9b59b6'], ['Schwarz', '#1a1a1a'], ['Weiß', '#e8e8e8'], ['Pink', '#ff5fa8'], ['Türkis', '#1fb5b0'], ['Gold', '#d4a017'], ['Silber', '#b7bcc6']];
 const STRIPES = [['Keine', null], ['Weiß', '#f4f4f4'], ['Schwarz', '#151515'], ['Gold', '#e0b020'], ['Rot', '#d02020'], ['Blau', '#2060d0']];
@@ -1544,11 +1555,11 @@ function questMenu() {
   return { t: 'AUFTRÄGE', rows: () => Q.map(q => ({ a: q[0], t: `${q[1]} – ${q[2]}`, off: !!mission })), act: a => { if ((a === 'taxi' || a === 'duel') && !p.car) return 'Du brauchst ein Auto!'; closeMenu(); startMission(a); } };
 }
 function phoneMenu() {
-  return { t: '📱 HANDY', grid: true, rows: () => [{ a: 'taxi', ic: '🚕', t: 'Taxi', pr: 25, off: !!taxi || !!p.car }, { a: 'q', ic: '📋', t: 'Aufträge' }, { a: 'job', ic: '💼', t: 'Jobs' }, { a: 'fetch', ic: '🚗', t: 'Auto holen', pr: 100, off: lastOwn < 0 || !owned[lastOwn] }, { a: 'boat', ic: '🚤', t: 'Boot holen', pr: 150, off: !boat }, { a: 'ach', ic: '🏆', t: 'Erfolge' }, { a: 'radio', ic: '📻', t: radioOn ? 'Radio ' + radioOn + ': ' + RAD[radioOn - 1].n : 'Radio (aus)' },
+  return { t: '📱 HANDY', grid: true, rows: () => [{ a: 'taxi', ic: '🚕', t: 'Taxi', pr: 25, off: !!taxi || !!p.car }, { a: 'q', ic: '📋', t: 'Aufträge' }, { a: 'job', ic: '💼', t: 'Jobs' }, { a: 'fetch', ic: '🚗', t: 'Meine Autos', off: !owned.length }, { a: 'boat', ic: '🚤', t: 'Boot holen', pr: 150, off: !boat }, { a: 'ach', ic: '🏆', t: 'Erfolge' }, { a: 'radio', ic: '📻', t: radioOn ? 'Radio ' + radioOn + ': ' + RAD[radioOn - 1].n : 'Radio (aus)' },
       { a: 'gun', ic: '🔫', t: 'Waffen (+25%)' }, { a: 'bg', ic: '🛡', t: bg ? 'Leibwächter entlassen' : 'Leibwächter', pr: bg ? undefined : 400 }, { a: 'stats', ic: '📊', t: 'Statistik & Foto' }, { a: 'cancel', ic: '✖', t: jobSt ? 'Schicht beenden' : 'Auftrag abbrechen', off: !mission && !jobSt }],
     act: a => { if (a === 'taxi') { money -= 25; return callTaxi(); } if (a === 'q') { openMenu(questMenu()); return; } if (a === 'gun') { openMenu(gunMenu(1.25, 'WAFFEN BESTELLEN')); return; } if (a === 'stats') { openMenu(statsMenu()); return; }
       if (a === 'bg') { if (bg) { bg = null; return 'Leibwächter entlassen'; } money -= 400; bg = { x: p.x + 30, y: p.y, a: 0, ph: 0, fcd: 0, in: false }; return 'Leibwächter angeheuert – er folgt dir und schießt auf Feinde'; }
-      if (a === 'job') { openMenu(jobMenu()); return; } if (a === 'fetch') return fetchCar(); if (a === 'boat') return fetchBoat(false); if (a === 'ach') { openMenu(achMenu()); return; } if (a === 'radio') { cycleRadio(); return radioOn ? '📻 ' + RAD[radioOn - 1].n + (p.car ? '' : ' – läuft im Auto') : 'Radio aus'; }
+      if (a === 'job') { openMenu(jobMenu()); return; } if (a === 'fetch') { openMenu(fetchMenu()); return; } if (a === 'boat') return fetchBoat(false); if (a === 'ach') { openMenu(achMenu()); return; } if (a === 'radio') { cycleRadio(); return radioOn ? '📻 ' + RAD[radioOn - 1].n + (p.car ? '' : ' – läuft im Auto') : 'Radio aus'; }
       if (a === 'cancel') { if (jobSt) { endJob(); return 'Schicht beendet'; } mission = null; return 'Auftrag abgebrochen'; } } };
 }
 
@@ -1673,6 +1684,19 @@ function roadNear(x, y) {                       // freie Straßenstelle in der N
   for (let r = 50; r < 700; r += 26) for (let k = 0; k < 16; k++) { const a = k * TAU / 16 + r * .13, qx = x + Math.cos(a) * r, qy = y + Math.sin(a) * r; if (tileAt(qx, qy) === 0 && !bridge[Math.floor(qy / TS) * N + Math.floor(qx / TS)] && !cars.some(o => dist(o.x, o.y, qx, qy) < 60)) { const h = tileAt(qx + TS, qy) === 0 && tileAt(qx - TS, qy) === 0; return { x: qx, y: qy, a: h ? 0 : Math.PI / 2 }; } }
   return { x: x + 60, y, a: 0 };
 }
+function fetchOwned(i) {
+  const o = owned[i]; if (!o) return 'Kein Auto'; if (p.car && p.car === o.car) return 'Du sitzt schon drin';
+  const P0 = P(), free = (x, y) => [[-24, 0], [24, 0], [0, -12], [0, 12], [0, 0]].every(([dx, dy]) => !csolid(x + dx, y + dy) && !isWater(x + dx, y + dy)) && !cars.some(q => !q.wreck && dist(q.x, q.y, x, y) < 50);
+  let sp = null; for (let r = 56; r < 150 && !sp; r += 20) for (let k = 0; k < 16 && !sp; k++) { const a = (p.a || 0) + Math.PI / 2 + k * TAU / 16, x = P0.x + Math.cos(a) * r, y = P0.y + Math.sin(a) * r; if (free(x, y)) sp = { x, y, a: p.a || 0 }; }
+  if (!sp) sp = roadNear(P0.x, P0.y);
+  let c = o.car; if (!c || c.gone || c.wreck || !cars.includes(c)) { spawnOwned(i); c = o.car; }
+  c.x = sp.x; c.y = sp.y; c.a = sp.a; c.vx = c.vy = 0; c.air = 0; c.drv = null; c.sunk = false; lastOwn = i; tone(500, .1, 'triangle', .12); tone(800, .14, 'triangle', .12, 0, .1);
+  return CT[o.ti].n + ' steht neben dir';
+}
+function fetchMenu() {
+  return { t: '🚗 MEINE AUTOS HOLEN', rows: () => owned.length ? owned.map((o, i) => ({ a: 'o' + i, t: `${CT[o.ti].n}${p.car && p.car === o.car ? '  (du sitzt drin)' : o.car && !o.car.wreck && cars.includes(o.car) ? '  (steht irgendwo)' : ''}`, off: !!(p.car && p.car === o.car) })) : [{ a: 'x', t: 'Du hast noch keine Autos – kauf eins im Autohaus', off: true }],
+    act: a => { if (a[0] !== 'o') return; const m = fetchOwned(+a.slice(1)); closeMenu(); toast(m, '#7dff7d', 2); } };
+}
 function fetchCar() {
   if (lastOwn < 0 || !owned[lastOwn]) return 'Du hast noch kein eigenes Auto gefahren';
   const o = owned[lastOwn]; if (p.car && p.car === o.car) return 'Du sitzt schon drin'; if (money < 100) return 'Zu wenig Geld';
@@ -1777,7 +1801,11 @@ $('hot').addEventListener('pointerdown', e => { const b = e.target.closest('.hb'
 $('phone').addEventListener('pointerdown', e => { e.preventDefault(); initAudio(); if (started && !menu) openMenu(phoneMenu()); });
 hold('nit', () => inp.nit = true, () => inp.nit = false); hold('radio', cycleRadio, () => {});
 $('cog').addEventListener('pointerdown', e => { e.preventDefault(); initAudio(); if (started && !menu) openMenu(settingsMenu()); });
-$('mapHit').addEventListener('pointerdown', e => { e.preventDefault(); if (!started || menu) return; bigMap = !bigMap; $('mapHit').classList.toggle('big', bigMap); if (bigMap) inputsReset(); });
+let bigSel = null;
+function bigLayout() { const wide = vw > vh * 1.25, sz = Math.min(vh - 64, wide ? vw * .64 : vw - 20), ox = wide ? 14 : (vw - sz) / 2, oy = 52; return { wide, sz, ox, oy, sc: sz / W }; }
+$('mapHit').addEventListener('pointerdown', e => { e.preventDefault(); if (!started || menu) return;
+  if (bigMap) { const L = bigLayout(); let best = null, bd = 26; for (const sh of shops) { const d1 = dist(e.clientX, e.clientY, L.ox + sh.x * L.sc, L.oy + sh.y * L.sc); if (d1 < bd) { bd = d1; best = sh; } } if (best && best !== bigSel) { bigSel = best; tone(900, .05, 'square', .08); return; } bigSel = null; }
+  bigMap = !bigMap; $('mapHit').classList.toggle('big', bigMap); if (bigMap) inputsReset(); });
 (function stick() {                  // schwebender Analog-Stick (zu Fuß) bzw. schwebendes Lenkrad (im Auto): erscheint dort, wo der Daumen aufsetzt
   const z = $('lz'), el = $('stick'), kn = $('knob'), wl = $('wheel'), ws = $('wsvg'); let id = null, ox = 0, oy = 0, wm = false;
   const set = ev => {
@@ -1808,7 +1836,7 @@ addEventListener('keyup', e => { keys[e.code] = false; if (e.code === 'KeyH') in
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; inp.horn = false; });
 for (const ev of ['gesturestart', 'gesturechange', 'dblclick', 'contextmenu']) document.addEventListener(ev, e => e.preventDefault());   // iOS: kein Zoom/Menü
 document.addEventListener('touchmove', e => { if (!(e.target.closest && e.target.closest('#mList'))) e.preventDefault(); }, { passive: false });
-function startGame() { if (started) return; started = true; $('start').style.display = 'none'; initAudio(); toast('Tippe das Telefon: Taxi, Aufträge, Waffen', '#ffd200', 4); }
+function startGame() { if (started) return; started = true; $('start').style.display = 'none'; initAudio(); }
 $('go').addEventListener('pointerdown', e => { e.preventDefault(); startGame(); });
 
 // ---------- Update ----------
@@ -2148,19 +2176,33 @@ function vig(col, a) {            // Randverdunkelung (Schaden / Polizei)
   gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, col.replace('A', a.toFixed(2))); ctx.fillStyle = gr; ctx.fillRect(0, 0, vw, vh);
 }
 function drawBigMap() {           // große Karte (Tipp auf die Minikarte)
-  ctx.fillStyle = 'rgba(0,0,0,.88)'; ctx.fillRect(0, 0, vw, vh);
-  const sz = Math.min(vw, vh) - 56, ox = (vw - sz) / 2, oy = (vh - sz) / 2 + 12, sc = sz / W;
-  ctx.drawImage(mc, ox, oy, sz, sz); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.strokeRect(ox, oy, sz, sz);
-  for (const t of ter) { ctx.fillStyle = t.own ? 'rgba(60,200,60,.3)' : t.col + '66'; ctx.fillRect(ox + t.x0 * sc, oy + t.y0 * sc, (t.x1 - t.x0) * sc, (t.y1 - t.y0) * sc); text(t.n, ox + (t.x0 + t.x1) / 2 * sc, oy + (t.y0 + t.y1) / 2 * sc, 12, '#fff'); }
-  const dot = (x, y, col, r, lab) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(ox + x * sc, oy + y * sc, r, 0, TAU); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#000'; ctx.stroke(); if (lab) text(lab, ox + x * sc, oy + y * sc + 1, 12, '#fff'); };
-  for (const s of shops) dot(s.x, s.y, s.col, 11, s.l);
-  if (mission) mPts(mission).forEach(t => dot(t.x, t.y, '#19e6ff', 8)); if (tram) dot(tram.w[0].x, tram.w[0].y, '#ff7a00', 7, 'B');
-  const P0 = P(); dot(P0.x, P0.y, '#fff', 8); text('KARTE  –  tippen zum Schließen', vw / 2, oy - 16, 16, '#ffd200');
+  const L = bigLayout(), { sz, ox, oy, sc } = L, P0 = P(), u = Math.max(.8, Math.min(vw, vh) / 700);
+  ctx.fillStyle = 'rgba(4,8,20,.93)'; ctx.fillRect(0, 0, vw, vh);
+  panel(ox - 8, 6, sz + 16, 38); text((ZONE === 0 ? 'INSELSTADT' : 'BERGLAND') + ' – KARTE', ox + sz / 2, 25, 18, '#ffd200');
+  ctx.save(); rr(ox, oy, sz, sz, 10); ctx.clip(); ctx.drawImage(mc, ox, oy, sz, sz);
+  for (const t of ter) { ctx.fillStyle = t.own ? 'rgba(60,200,60,.3)' : t.col + '66'; ctx.fillRect(ox + t.x0 * sc, oy + t.y0 * sc, (t.x1 - t.x0) * sc, (t.y1 - t.y0) * sc); text(t.n, ox + (t.x0 + t.x1) / 2 * sc, oy + (t.y0 + t.y1) / 2 * sc, 11, '#fff'); }
+  const gx = (x, y) => [ox + x * sc, oy + y * sc], dot = (x, y, col, r, lab) => { const [X, Y] = gx(x, y); ctx.fillStyle = col; ctx.beginPath(); ctx.arc(X, Y, r, 0, TAU); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#000'; ctx.stroke(); if (lab) text(lab, X, Y + 1, 11, '#fff'); };
+  for (const sm of summits) if (!(ST.sm && ST.sm[sm.key])) { const [X, Y] = gx(sm.x, sm.y); ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X, Y - 8); ctx.lineTo(X - 7, Y + 5); ctx.lineTo(X + 7, Y + 5); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+  for (const s of shops) dot(s.x, s.y, s.col, 10, s.l);
+  for (const o of owned) if (o.car && cars.includes(o.car) && !o.car.wreck && o !== (p.car && owned[p.car.own])) { const [X, Y] = gx(o.car.x, o.car.y); ctx.fillStyle = '#3ed45a'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; rr(X - 7, Y - 5, 14, 10, 3); ctx.fill(); ctx.stroke(); }
+  for (const k of cars) if (k.t.police && !k.wreck && k.mode === 'pursue' && !k.gone) dot(k.x, k.y, Math.floor(time * 4) % 2 ? '#f33' : '#37f', 5);
+  if (mission) mPts(mission).forEach(t => dot(t.x, t.y, '#19e6ff', 8)); if (tram) dot(tram.w[0].x, tram.w[0].y, '#ff7a00', 7, 'B'); if (heli) dot(heli.x, heli.y, '#fff', 6);
+  if (stars > 0 && lastKnown && !seen) { const [X, Y] = gx(lastKnown.x, lastKnown.y), pr = 14 + Math.sin(time * 5) * 4; ctx.strokeStyle = '#7fd0ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(X, Y, pr, 0, TAU); ctx.stroke(); }
+  { const [X, Y] = gx(P0.x, P0.y); ctx.save(); ctx.translate(X, Y); ctx.rotate(p.car ? p.car.a : p.a); const pl = 1 + Math.sin(time * 5) * .12; ctx.scale(pl, pl); ctx.fillStyle = '#ffd200'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(11, 0); ctx.lineTo(-8, -8); ctx.lineTo(-4, 0); ctx.lineTo(-8, 8); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore(); }
+  ctx.restore(); rr(ox, oy, sz, sz, 10); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
+  if (bigSel) { const [X, Y] = gx(bigSel.x, bigSel.y), lab = bigSel.fn ? bigSel.n + ' – ' + bigSel.fn : bigSel.n; ctx.font = 'bold 14px "Courier New",monospace'; const tw = ctx.measureText(lab).width + 20, bx = clamp(X - tw / 2, ox, ox + sz - tw), by = Y > oy + 50 ? Y - 40 : Y + 16; panel(bx, by, tw, 26); text(lab, bx + tw / 2, by + 14, 14, '#fff'); }
+  const lines = []; const seenL = new Set(); for (const s of shops) { const k = s.l + s.n; if (seenL.has(k)) continue; seenL.add(k); lines.push([s.l, s.n.length > 24 ? s.n.slice(0, 24) : s.n, s.col]); }
+  const lx = L.wide ? ox + sz + 16 : ox, ly = L.wide ? oy : oy + sz + 8, lw = L.wide ? vw - lx - 12 : sz;
+  if (L.wide && lw > 120) { const rows = lines.length + 5, rh = Math.min(22, (sz - 20) / rows); panel(lx, ly, lw, rh * rows + 16);
+    lines.forEach(([l, n, c], i) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(lx + 16, ly + 14 + i * rh + rh / 2 - 3, 7, 0, TAU); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.stroke(); text(l, lx + 16, ly + 14 + i * rh + rh / 2 - 2, 9, '#fff'); text(n, lx + 30, ly + 14 + i * rh + rh / 2 - 2, 11, '#fff', 'left'); });
+    let yy = ly + 14 + lines.length * rh + rh / 2; text('▲ weißer Gipfel   grün = deine Autos', lx + 8, yy, 10, '#cfe', 'left'); text('Blau/Rot = Polizei, Ring = Suchgebiet', lx + 8, yy + rh * .9, 10, '#7fd0ff', 'left'); text('Tipp auf Punkt = Name', lx + 8, yy + rh * 1.8, 10, '#ffd200', 'left'); }
+  text('tippen zum Schließen', vw / 2, vh - 14, 13, '#aab');
 }
 function hud() {
   if (drift > .3 && dscore > 0) { const uu = Math.max(.8, Math.min(vw, vh) / 700); text(`DRIFT ×${1 + Math.min(4, Math.floor(drift))}`, vw / 2, 78 * uu, 26 * uu, '#7fd0ff'); text('+$' + Math.round(dscore), vw / 2, 106 * uu, 20 * uu, '#fff'); }
   const u = Math.max(.8, Math.min(vw, vh) / 700), ms = clamp(Math.min(vw, vh) * .26, 96, 160), mx = 14, my = 14, c = p.car, P0 = P(), hp = c ? c.hp / c.hpm * 100 : p.hp;
   if (hp < 35) vig('rgba(220,20,20,A)', .3 + .2 * Math.sin(time * 6)); else if (stars >= 3) vig(Math.floor(time * 4) % 2 ? 'rgba(220,30,30,A)' : 'rgba(40,80,255,A)', .22);
+  document.documentElement.style.setProperty('--ms', (ms + 24) + 'px');
   if (bigMap) { drawBigMap(); return; }
   // Minikarte (Tipp = große Karte)
   ctx.save(); rr(mx, my, ms, ms, 14); ctx.clip(); ctx.fillStyle = '#000'; ctx.fillRect(mx, my, ms, ms);
@@ -2676,8 +2718,8 @@ function drawRide() {
 
 // ---------- Vollbild-Minispiele: Dietrich-Timing und Geldzug ----------
 function startLock(lv, cb, opt) {
-  const K = pickLv, need = 1 + Math.floor((lv - 1) / 7), w = clamp(.62 - .028 * lv + .018 * K, .07, .62), spd = clamp(1.5 + lv * .13 - K * .03, 1.2, 4.2);
-  mini = { type: 'lock', lv, cb, need, hits: 0, tries: 3, ang: rnd(0, TAU), dir: 1, spd, w, za: rnd(0, TAU), state: 'play', t: 0, flash: 0, fcol: '#fff', tap: false, opt: opt || {}, msg: '' };
+  const K = pickLv, V = LPV[pickV.cur] || LPV[0], need = 1 + Math.floor((lv - 1) / 7), w = clamp((.62 - .028 * lv + .018 * K) * V.w, .07, .8), spd = clamp((1.5 + lv * .13 - K * .03) * V.s, .9, 4.2);
+  mini = { type: 'lock', lv, cb, need, hits: 0, tries: 3 + V.t, ang: rnd(0, TAU), dir: 1, spd, w, za: rnd(0, TAU), state: 'play', t: 0, flash: 0, fcol: '#fff', tap: false, opt: opt || {}, msg: '' };
   inputsReset(); tone(300, .08, 'square', .1);
 }
 function startHeist(dest) {
