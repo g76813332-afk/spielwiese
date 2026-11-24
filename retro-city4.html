@@ -29,6 +29,7 @@ body.lefty #stick{left:auto;right:calc(var(--G) + env(safe-area-inset-right))}
 #fire{right:calc(var(--G)*3 + var(--S)*2 + env(safe-area-inset-right));bottom:calc(var(--G) + env(safe-area-inset-bottom));width:calc(var(--S)*.95);height:calc(var(--S)*.95);background:rgba(255,140,0,.34)}
 #drift{right:calc(var(--G)*2 + var(--S) + env(safe-area-inset-right));bottom:calc(var(--G)*3 + var(--S)*1.6 + env(safe-area-inset-bottom));width:calc(var(--S)*.6);height:calc(var(--S)*.6);font-size:12px;background:rgba(120,200,255,.3)}
 body.inroom #drift,body.inmini #drift{display:none}
+body.inroom.inbur #gas{display:flex}
 #wpn{right:calc(var(--G)*3 + var(--S)*2 + env(safe-area-inset-right));bottom:calc(var(--G)*2 + var(--S)*.95 + env(safe-area-inset-bottom));width:calc(var(--S)*.6);height:calc(var(--S)*.6);font-size:12px}
 #phone{top:calc(env(safe-area-inset-top) + 58px);right:12px;width:54px;height:54px;font-size:26px;background:rgba(40,40,60,.7)}
 #cog{top:calc(env(safe-area-inset-top) + 120px);right:12px;width:54px;height:54px;font-size:26px;background:rgba(40,40,60,.7)}
@@ -1128,7 +1129,10 @@ const SH = [
   { k: 'sup', l: 'S', n: 'SUPERMARKT 24h', col: '#2fae5a', menu: () => supMenu() },
   { k: 'estate', l: 'H', n: 'IMMOBILIEN', col: '#e2a64a', menu: () => estateMenu() },
   { k: 'home', l: 'Z', n: 'EIGENHEIM', col: '#c9d6e6', menu: () => homeMenu() },
-  { k: 'villa', l: 'V', n: 'FERIENVILLA', col: '#f2d9a8', menu: () => homeMenu() }
+  { k: 'villa', l: 'V', n: 'FERIENVILLA', col: '#f2d9a8', menu: () => homeMenu() },
+  { k: 'bur1', lv: 1, l: 'E', n: 'WOHNHAUS', col: '#9a7a5a', menu: function () { return burMenu(this); } },
+  { k: 'bur2', lv: 2, l: 'E', n: 'LANDHAUS', col: '#7a8a6a', menu: function () { return burMenu(this); } },
+  { k: 'bur3', lv: 3, l: 'E', n: 'LUXUSVILLA', col: '#8a6a9a', menu: function () { return burMenu(this); } }
 ];
 const NIGHT_CLOSED = ['gun', 'rep', 'food', 'job', 'estate'];
 const isNight = () => S.night && (.5 + .5 * Math.cos((time / 420 % 1) * TAU)) < .3;
@@ -1152,7 +1156,8 @@ const ACH = [
   ['st3', 'Gesucht', '3 Sterne erreichen', () => (ST.maxStars || 0) >= 3, 500], ['st6', 'Staatsfeind', '6 Sterne erreichen', () => (ST.maxStars || 0) >= 6, 5000],
   ['drift', 'Drift-König', '6 Sekunden am Stück driften', () => ST.drift >= 6, 1500], ['jump', 'Stuntman', '100 m weit springen', () => ST.jump >= 100, 1000], ['wr', 'Schrotthändler', '20 Autos zerstören', () => ST.wr >= 20, 1000],
   ['pick', 'Dietrich-Meister', 'Dietrich Stufe 10', () => pickLv >= 10, 2000], ['train', 'Zugräuber', 'den Geldzug überfallen', () => heistReady > 0, 5000],
-  ['fine', 'Blitzer-Opfer', '3 Bußgelder kassieren', () => (ST.fines || 0) >= 3, 100], ['photo', 'Fotograf', 'ein Foto machen', () => ST.photos >= 1, 100], ['truck', 'Geldtransporter', 'einen Geldtransporter knacken', () => (ST.trucks || 0) >= 1, 2000]
+  ['fine', 'Blitzer-Opfer', '3 Bußgelder kassieren', () => (ST.fines || 0) >= 3, 100], ['photo', 'Fotograf', 'ein Foto machen', () => ST.photos >= 1, 100], ['truck', 'Geldtransporter', 'einen Geldtransporter knacken', () => (ST.trucks || 0) >= 1, 2000],
+  ['burg', 'Einbrecher', 'einen Einbruch erfolgreich abschließen', () => (ST.burg || 0) >= 1, 500], ['safe', 'Tresorknacker', 'einen versteckten Tresor knacken', () => (ST.safes || 0) >= 1, 2500]
 ];
 const achDone = () => (ST.ach && typeof ST.ach === 'object') ? ST.ach : (ST.ach = {});
 let achT = 3, ctT = 90;
@@ -1743,7 +1748,7 @@ const hexA = (h, a) => { const n = parseInt(h.slice(1), 16); return `rgba(${n >>
 function text(t, x, y, size, col, al) { ctx.font = `bold ${size}px "Courier New",monospace`; ctx.textAlign = al || 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = Math.max(3, size / 6); ctx.strokeStyle = '#000'; ctx.lineJoin = 'round'; ctx.strokeText(t, x, y); ctx.fillStyle = col; ctx.fillText(t, x, y); }
 function render() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = '#0b0b10'; ctx.fillRect(0, 0, vw, vh);
-  document.body.classList.toggle('inroom', !!(inside || ride)); document.body.classList.toggle('inmini', !!mini); document.body.classList.toggle('inlock', !!(mini && mini.type === 'lock')); if (mini) { renderMini(); if (dead) drawDead(); return; } if (ride) { drawRide(); return; } if (inside) { renderInside(); return; }
+  document.body.classList.toggle('inroom', !!(inside || ride)); document.body.classList.toggle('inmini', !!mini); document.body.classList.toggle('inbur', !!(inside && inside.bur)); document.body.classList.toggle('inlock', !!(mini && mini.type === 'lock')); if (mini) { renderMini(); if (dead) drawDead(); return; } if (ride) { drawRide(); return; } if (inside) { renderInside(); return; }
   ctx.save(); ctx.translate(vw / 2 + (shake ? rnd(-shake, shake) : 0), vh / 2 + (shake ? rnd(-shake, shake) : 0)); ctx.scale(zoom, zoom); ctx.translate(-camX, -camY);
   const hw = vw / zoom / 2 + 4, hh = vh / zoom / 2 + 4, x0 = Math.max(0, Math.floor(camX - hw)), y0 = Math.max(0, Math.floor(camY - hh)), x1 = Math.min(W, Math.ceil(camX + hw)), y1 = Math.min(W, Math.ceil(camY + hh));
   if (x1 > x0 && y1 > y0) ctx.drawImage(mc, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
@@ -1954,7 +1959,7 @@ function drawShopfront(s) {
   const cx = s.x + ax * 78, cy = s.y + ay * 78;                                          // Schild auf dem Dach (Symbol oben drauf)
   ctx.fillStyle = 'rgba(0,0,0,.28)'; rr(cx - 43 + 6, cy - 33 + 7, 86, 68, 12); ctx.fill();
   const gr = ctx.createLinearGradient(0, cy - 34, 0, cy + 34); gr.addColorStop(0, shade(s.col, .25)); gr.addColorStop(1, shade(s.col, -.3)); rr(cx - 43, cy - 34, 86, 68, 12); ctx.fillStyle = gr; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,.88)'; rr(cx - 33, cy - 28, 66, 40, 8); ctx.fill(); drawIcon(s.k, cx, cy - 8, .95);
+  ctx.fillStyle = 'rgba(255,255,255,.88)'; rr(cx - 33, cy - 28, 66, 40, 8); ctx.fill(); drawIcon(s.lv ? 'home' : s.k, cx, cy - 8, .95);
   text(s.n, cx, cy + 24, s.n.length > 8 ? 9 : 11, '#fff');
   if (shopClosed(s)) { ctx.fillStyle = 'rgba(10,10,20,.62)'; rr(cx - 33, cy - 28, 66, 40, 8); ctx.fill(); text('GESCHLOSSEN', cx, cy - 8, 9, '#ff6a6a'); }
   else if ((s.k === 'home' && !home) || (s.k === 'villa' && !(home && home.villa))) { ctx.fillStyle = 'rgba(10,10,20,.5)'; rr(cx - 33, cy - 28, 66, 40, 8); ctx.fill(); text('ZU VERKAUFEN', cx, cy - 8, 8, '#ffd23a'); }
@@ -2035,6 +2040,7 @@ ROOM.ferry = { floor: ['#a9b8c4', '#9fb0bc'], wall: '#21506e', solids: [[120, 84
 } };
 const ROOM_SOL = k => (ROOM[k] || ROOM.item).solids;
 function enterShop(sh) {
+  if (sh.lv) { burDoor(sh); return; }
   if (sh.k === 'villa' && !(home && home.villa)) { shopLock = sh; toast('Ferienvilla zu verkaufen – im Immobilienbüro ($80.000)', '#ff0', 2.5); return; }
   if (sh.k === 'home' && !home) { shopLock = sh; toast('Haus zu verkaufen – im Immobilienbüro ($25.000)', '#ff0', 2.5); return; }
   if (shopClosed(sh)) { shopLock = sh; toast('Geschlossen – öffnet am Morgen (Supermarkt: 24 h)', '#f66', 2.5); return; }
@@ -2044,11 +2050,224 @@ function enterShop0(sh) {
   initAudio(); inputsReset(); toastT = 0; tone(660, .1, 'sine', .1); tone(880, .12, 'sine', .1, 0, .1);
   fadeTo(() => { inside = { sh, x: RW / 2, y: RH - 40, a: -Math.PI / 2, ph: 0, lock: true, t: 0 }; $('use').innerHTML = 'AUS-<br>GANG'; });
 }
+
+// ---------- Einbruch: Haeuser mit Raeumen, Wachen mit Taschenlampe, Verstecken und Tresor ----------
+const BUR = [null,
+  { n: 'WOHNHAUS', c: 2, r: 1, gd: s => s % 2, lm: 1, sv: 1200, lk: 5, est: '$200 – $700' },
+  { n: 'LANDHAUS', c: 2, r: 2, gd: s => 1 + s % 2, lm: 2.6, sv: 5000, lk: 12, est: '$1.500 – $7.000' },
+  { n: 'LUXUSVILLA', c: 3, r: 2, gd: () => 3, lm: 6, sv: 18000, lk: 20, est: '$8.000 – $30.000' }];
+const BT = 20, BRW = 15, BRH = 11;
+const burSeed = sh => Math.abs(Math.floor(sh.x * 7 + sh.y * 13));
+const burRng = s => () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+function burInfo(sh) {
+  const D = BUR[sh.lv], sd = burSeed(sh), n = D.gd(sd);
+  openMenu({ t: `🏠 ${D.n} – STUFE ${sh.lv}`, rows: () => [
+      { a: 'i', t: `Räume: ${D.c * D.r}`, off: true }, { a: 'i', t: n ? `Wachen / Bewohner: ${n} (mit Taschenlampe)` : 'Wachen / Bewohner: keine', off: true },
+      { a: 'i', t: `Tresor-Schloss: Stufe ${D.lk}`, off: true }, { a: 'i', t: `Beute: ${D.est}`, off: true },
+      { a: 'i', t: ST.time < (sh.empty || 0) ? '⏳ Gerade erst ausgeräumt – später wieder' : 'Eingang: die Tür vorne', off: true }], act: () => {} });
+}
+function burMenu(sh) { return burDoorMenu(sh); }
+function burDoorMenu(sh) {
+  const D = BUR[sh.lv], n = D.gd(burSeed(sh));
+  return { t: `🏠 ${D.n} – STUFE ${sh.lv}`, rows: () => [
+      { a: 'i', t: `${D.c * D.r} Räume · ${n ? n + ' Wache(n) mit Taschenlampe' : 'keine Wachen'} · Beute ${D.est}`, off: true },
+      { a: 'go', t: '🔦 Einbrechen (leise schleichen, Verstecke nutzen)', off: ST.time < (sh.empty || 0) },
+      { a: 'no', t: 'Lieber nicht' }], act: a => { if (a === 'go') { closeMenu(); enterBur(sh); } else if (a === 'no') closeMenu(); } };
+}
+function burDoor(sh) {
+  if (ST.time < (sh.empty || 0)) { shopLock = sh; toast('Hier war gerade jemand – später wiederkommen', '#f66', 2.5); return; }
+  const m = burDoorMenu(sh); m.close = () => { shopLock = sh; }; openMenu(m);
+}
+(function () {                                              // Antippen eines Hauses zeigt seine Stufe
+  let d = null;
+  addEventListener('pointerdown', e => { d = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.target && e.target.id }; }, true);
+  addEventListener('pointerup', e => {
+    if (!d) return; const q = d; d = null; if (!started || menu || inside || mini || ride || dead || bigMap) return;
+    if (performance.now() - q.t > 380 || Math.hypot(e.clientX - q.x, e.clientY - q.y) > 14 || (q.id && q.id !== 'c' && q.id !== 'lz')) return;
+    const wx = (e.clientX - vw / 2) / zoom + camX, wy = (e.clientY - vh / 2) / zoom + camY; let best = null, bd = 85;
+    for (const sh of shops) if (sh.lv) { const d1 = Math.min(dist(wx, wy, sh.x, sh.y), dist(wx, wy, sh.x + DX[sh.bd] * 70, sh.y + DY[sh.bd] * 70)); if (d1 < bd) { bd = d1; best = sh; } }
+    if (best) burInfo(best);
+  }, true);
+})();
+function burGen(sh) {
+  const lv = sh.lv, D = BUR[lv], sd = burSeed(sh) + Math.floor(Math.random() * 1000), R = burRng(sd), C = D.c, Rr = D.r, GW = C * BRW + 1, GH = Rr * BRH + 2;
+  const G = new Uint8Array(GW * GH), B = { lv, D, sh, GW, GH, G, furn: [], loot: [], hides: [], paints: [], guards: [], rooms: [], got: 0, al: 0, alarm: false, hid: null, safeOpen: false, t: 0, msg: '', msgT: 0, caught: 0, run: false, hint: '' };
+  for (let y = 0; y <= Rr * BRH; y++) for (let x = 0; x < GW; x++) if (x % BRW === 0 || y % BRH === 0) G[y * GW + x] = 1;
+  for (let c = 1; c < C; c++) for (let r = 0; r < Rr; r++) for (let k = 4; k <= 6; k++) G[(r * BRH + k) * GW + c * BRW] = 0;
+  for (let r = 1; r < Rr; r++) for (let c = 0; c < C; c++) for (let k = 6; k <= 8; k++) G[r * BRH * GW + c * BRW + k] = 0;
+  for (let k = 6; k <= 8; k++) G[Rr * BRH * GW + k] = 0;
+  const solid = (x, y, w, h, t) => { for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) G[(y + j) * GW + x + i] = t || 2; };
+  const lootAt = (x, y) => { const E = ['💵', '💎', '⌚', '💍', '💻', '💰']; B.loot.push({ x: (x + .5) * BT, y: (y + .5) * BT, v: Math.max(5, Math.round((25 + R() * 70) * D.lm / 5) * 5), e: E[Math.floor(R() * E.length)], got: false }); };
+  const QU = [[1, 1, 5, 3], [9, 1, 6, 3], [1, 7, 5, 4], [9, 7, 6, 4]];
+  for (let r = 0; r < Rr; r++) for (let c = 0; c < C; c++) {
+    const ox = c * BRW, oy = r * BRH, ty = ['hide', 'table', R() < .5 ? 'bed' : 'desk', R() < .5 ? 'sofa' : 'bed']; B.rooms.push({ c, r, th: (c + 2 * r) % 4 });
+    for (let i = ty.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [ty[i], ty[j]] = [ty[j], ty[i]]; }
+    QU.forEach(([qx, qy, qw, qh], qi) => {
+      const t = ty[qi], X = ox + qx, Y = oy + qy, top = qi < 2, yy = top ? Y : Y + 1;
+      if (t === 'hide') { const y = top ? Y : Y + qh - 1; solid(X + 1, y, 2, 1, 3); B.hides.push({ x: (X + 1) * BT, y: y * BT, w: 2 * BT, h: BT, top }); }
+      else if (t === 'table') { solid(X + 1, yy, 3, 2); B.furn.push({ k: 'table', x: (X + 1) * BT, y: yy * BT, w: 3 * BT, h: 2 * BT, top }); lootAt(X + 2, yy); }
+      else if (t === 'bed') { solid(X, yy, 3, 2); solid(X + 3, yy, 1, 1); B.furn.push({ k: 'bed', x: X * BT, y: yy * BT, w: 3 * BT, h: 2 * BT, top }, { k: 'stand', x: (X + 3) * BT, y: yy * BT, w: BT, h: BT, top }); lootAt(X + 3, yy); }
+      else if (t === 'desk') { solid(X + 1, yy, 3, 1); B.furn.push({ k: 'desk', x: (X + 1) * BT, y: yy * BT, w: 3 * BT, h: BT, top }); lootAt(X + 2, yy); }
+      else { const sy = top ? Y : Y + qh - 1, cy = top ? Y + 2 : Y + 1; solid(X, sy, 4, 1); solid(X + 1, cy, 2, 1); B.furn.push({ k: 'sofa', x: X * BT, y: sy * BT, w: 4 * BT, h: BT, top }, { k: 'coffee', x: (X + 1) * BT, y: cy * BT, w: 2 * BT, h: BT, top }); lootAt(X + 1, cy); }
+    });
+    { const wl = (x, y, dx, dy) => [0, 1, 2].every(i => G[(y + dy * i) * GW + x + dx * i] === 1);        // Bild an freier Wandstelle (Mittelgang)
+      const opts = [[ox + 6, oy, 1, 0, 7.5, .5, 0], [ox + 6, oy + BRH, 1, 0, 7.5, BRH + .5, 0], [ox, oy + 4, 0, 1, .5, 5.5, 1], [ox + BRW, oy + 4, 0, 1, BRW + .5, 5.5, 1]], o = opts.find(q => wl(q[0], q[1], q[2], q[3])) || opts[0];
+      B.paints.push({ x: (ox + o[4]) * BT + (o[6] ? 0 : 0), y: (oy + o[5]) * BT, vert: !!o[6], safe: false, seen: false, c: ['#c0503a', '#3a7ab0', '#d8a83a', '#4a9a5a'][Math.floor(R() * 4)] }); }
+  }
+  const cand = B.paints.map((q, i) => i).filter(i => !(B.rooms[i].c === 0 && B.rooms[i].r === Rr - 1)), si = cand[Math.floor(R() * cand.length)]; B.paints[si].safe = true; B.safeV = Math.round(D.sv * (.8 + R() * .4) / 50) * 50;
+  const route = []; if (Rr === 1) { for (let c = 0; c < C; c++) route.push([c, 0]); } else { for (let c = 0; c < C; c++) route.push([c, 0]); for (let c = C - 1; c >= 0; c--) route.push([c, 1]); }
+  const wp = route.map(([c, r]) => [(c * BRW + 7.5) * BT, (r * BRH + 5.5) * BT]), nG = D.gd(sd), entIdx = route.findIndex(q => q[0] === 0 && q[1] === Rr - 1);
+  for (let i = 0; i < nG; i++) { let st = (Math.floor(i * route.length / nG) + 1 + (sd % 3)) % route.length; if (st === entIdx && route.length > 1) st = (st + 1) % route.length; B.guards.push({ x: wp[st][0], y: wp[st][1], a: R() * TAU, wi: (st + 1) % route.length, route: wp, state: 'patrol', al: 0, pw: null, rt: 0, nx: wp[st][0], ny: wp[st][1], ph: 0, lose: 0, wait: 0, tx: 0, ty: 0, lx: 0, ly: 0, base: 0 }); }
+  B.exitY = Rr * BRH * BT + 10; return B;
+}
+function enterBur(sh) {
+  initAudio(); inputsReset(); tone(660, .1, 'sine', .1); tone(520, .12, 'sine', .1, 0, .1);
+  toastT = 0; fadeTo(() => { const B = burGen(sh); inside = { sh, bur: B, x: 7.5 * BT, y: B.D.r * BRH * BT - 26, a: -Math.PI / 2, ph: 0, t: 0 }; B.msg = 'Schleiche leise! SPRINT = laut'; B.msgT = 3.5; });
+}
+const burWall = (B, x, y) => { const tx = Math.floor(x / BT), ty = Math.floor(y / BT); return tx >= 0 && ty >= 0 && tx < B.GW && ty < B.GH && B.G[ty * B.GW + tx] === 1; };
+const burSolid = (B, x, y) => { const tx = Math.floor(x / BT), ty = Math.floor(y / BT); return tx < 0 || ty < 0 || tx >= B.GW || ty >= B.GH || B.G[ty * B.GW + tx] !== 0; };
+const burFree = (B, x, y, r) => !(burSolid(B, x - r, y - r) || burSolid(B, x + r, y - r) || burSolid(B, x - r, y + r) || burSolid(B, x + r, y + r));
+function burLos(B, x0, y0, x1, y1) { const n = Math.ceil(dist(x0, y0, x1, y1) / 5); for (let i = 1; i < n; i++) { const t = i / n; if (burWall(B, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)) return false; } return true; }
+function burStep(B, x, y, tx, ty) {
+  const W = B.GW, H = B.GH, s = Math.floor(y / BT) * W + Math.floor(x / BT), e = Math.floor(ty / BT) * W + Math.floor(tx / BT); if (s === e) return [tx, ty];
+  const prev = new Int16Array(W * H).fill(-1), q = [e]; prev[e] = e;
+  for (let i = 0; i < q.length; i++) { const c = q[i]; if (c === s) break; const cx = c % W, cy = (c / W) | 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = cx + dx, ny = cy + dy; if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue; const n = ny * W + nx; if (prev[n] >= 0 || (B.G[n] !== 0 && n !== s)) continue; prev[n] = c; q.push(n); } }
+  if (prev[s] < 0) return [tx, ty]; const n = prev[s]; return [(n % W + .5) * BT, ((n / W | 0) + .5) * BT];
+}
+const burRange = B => 135 + B.lv * 12;
+function burGuard(B, g, dt, I) {
+  const R = burRange(B), d = dist(g.x, g.y, I.x, I.y), los = !B.hid && d < R + 20 && burLos(B, g.x, g.y, I.x, I.y);
+  const vis = los && d < R && Math.abs(wrap(Math.atan2(I.y - g.y, I.x - g.x) - g.a)) < .5, near = los && d < 26, heard = !B.hid && B.run && d < 105;
+  if (g.state !== 'chase') {
+    if (vis || near) { g.al = Math.min(1, g.al + dt * (d < 70 || near ? 2.6 : 1.25) * (B.run ? 1.5 : 1)); g.lx = I.x; g.ly = I.y; if (g.state === 'patrol' && g.al > .3) { g.state = 'look'; g.tx = I.x; g.ty = I.y; g.wait = 2.2; } }
+    else if (heard) { g.al = Math.min(.8, g.al + dt * .5); if (g.state === 'patrol') { g.state = 'look'; g.tx = I.x; g.ty = I.y; g.wait = 2.5; } }
+    else g.al = Math.max(0, g.al - dt * .4);
+    if (g.al >= 1) { g.state = 'chase'; g.lose = 0; g.lx = I.x; g.ly = I.y; B.alarm = true; B.msg = '‼ ENTDECKT! Lauf oder versteck dich!'; B.msgT = 2.4; tone(900, .15, 'square', .15); tone(700, .2, 'square', .15, 0, .12); }
+  } else {
+    if (vis || near) { g.lose = 0; g.lx = I.x; g.ly = I.y; } else g.lose += dt;
+    if (g.lose > 3) { g.state = 'look'; g.tx = g.lx; g.ty = g.ly; g.wait = 3; g.al = .35; }
+    if (d < 15 || (B.hid && d < 22)) { B.caught = 1.4; B.msg = 'ERWISCHT!'; B.msgT = 2; tone(200, .4, 'sawtooth', .18, 90); return; }
+  }
+  let tx, ty, sp, moving = true;
+  if (g.state === 'chase') { sp = 108; tx = g.lose > 0 ? g.lx : I.x; ty = g.lose > 0 ? g.ly : I.y; }
+  else if (g.state === 'look') { sp = 64; tx = g.tx; ty = g.ty; if (dist(g.x, g.y, tx, ty) < 12) { moving = false; g.wait -= dt; g.a += Math.sin(time * 3) * dt * 1.6; if (g.wait <= 0) { g.state = 'patrol'; g.pw = null; } } }
+  else { sp = 46; const w = g.route[g.wi]; tx = w[0]; ty = w[1];
+    if (dist(g.x, g.y, tx, ty) < 7) { moving = false; if (g.pw == null) { g.pw = 1.7; g.base = g.a; } g.pw -= dt; g.a = g.base + Math.sin((1.7 - g.pw) * 3.2) * .95; if (g.pw <= 0) { g.pw = null; g.wi = (g.wi + 1) % g.route.length; } } }
+  if (moving) {
+    g.rt -= dt; if (g.rt <= 0) { g.rt = .14; const q = burStep(B, g.x, g.y, tx, ty); g.nx = q[0]; g.ny = q[1]; }
+    const dx = g.nx - g.x, dy = g.ny - g.y, l = Math.hypot(dx, dy); if (l > 1) { g.x += dx / l * sp * dt; g.y += dy / l * sp * dt; g.a += wrap(Math.atan2(dy, dx) - g.a) * Math.min(1, 9 * dt); g.ph += sp * dt * .1; }
+  }
+}
+function burUnhide(B, I) { const h = B.hid; B.hid = null; I.x = h.x + h.w / 2; I.y = h.top ? h.y + h.h + 9 : h.y - 9; }
+function updBur(dt) {
+  const I = inside, B = I.bur, D = B.D; time += dt; I.t += dt; B.t += dt; if (toastT > 0) toastT -= dt; if (B.msgT > 0) B.msgT -= dt;
+  if (B.caught > 0) { B.caught -= dt; if (B.caught <= 0) exitBur(true); return; }
+  const k = keys, kx = (k.ArrowRight || k.KeyD ? 1 : 0) - (k.ArrowLeft || k.KeyA ? 1 : 0), ky = (k.ArrowDown || k.KeyS ? 1 : 0) - (k.ArrowUp || k.KeyW ? 1 : 0);
+  let mx = (Math.abs(inp.sx) < .12 ? 0 : inp.sx) + kx, my = (Math.abs(inp.sy) < .12 ? 0 : inp.sy) + ky, l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; l = 1; }
+  B.run = false;
+  if (!B.hid) {
+    const run = !!(k.ShiftLeft || k.ShiftRight || inp.gas) && l > .05, sp = (run ? 135 : 72) * l, dx = mx * sp * dt, dy = my * sp * dt; B.run = run;
+    if (l > .05) { I.a += wrap(Math.atan2(my, mx) - I.a) * Math.min(1, 14 * dt); I.ph += sp * dt * .1; }
+    if (burFree(B, I.x + dx, I.y, 6)) I.x += dx; if (burFree(B, I.x, I.y + dy, 6)) I.y += dy;
+    for (const q of B.loot) if (!q.got && dist(q.x, q.y, I.x, I.y) < 16) { q.got = true; B.got += q.v; toast(`${q.e} +$${q.v}  (Tasche: $${B.got})`, '#7dff7d', 1.4); tone(1200, .07, 'square', .08); }
+    if (I.y > B.exitY) { exitBur(false); return; }
+  }
+  // naechste Aktion
+  let act = null, ad = 1e9;
+  if (B.hid) act = { t: 'Aus dem Versteck', f: () => burUnhide(B, I) };
+  else {
+    for (const h of B.hides) { const d = Math.hypot(Math.max(h.x - I.x, 0, I.x - h.x - h.w), Math.max(h.y - I.y, 0, I.y - h.y - h.h)); if (d < 22 && d < ad) { ad = d; act = { t: 'Verstecken (Schrank)', f: () => { const seen = B.guards.some(g => g.state === 'chase' && dist(g.x, g.y, I.x, I.y) < 160 && burLos(B, g.x, g.y, I.x, I.y)); if (seen) { B.msg = 'Er sieht dich – zu nah!'; B.msgT = 1.6; return; } B.hid = h; I.x = h.x + h.w / 2; I.y = h.y + h.h / 2; tone(300, .08, 'sine', .08); } }; } }
+    for (const q of B.paints) { const d = dist(q.x, q.y, I.x, I.y); if (d < 34 && d < ad) { ad = d; act = { t: q.safe && B.safeOpen ? 'Tresor (leer)' : 'Bild untersuchen', f: () => {
+      if (!q.safe) { q.seen = true; B.msg = 'Nur ein Bild – kein Tresor dahinter'; B.msgT = 1.8; return; }
+      if (B.safeOpen) { B.msg = 'Der Tresor ist leer'; B.msgT = 1.6; return; }
+      toast('Hinter dem Bild: ein TRESOR!', '#ffd200', 1.6);
+      startLock(D.lk, ok => { if (ok) { B.safeOpen = true; B.got += B.safeV; ST.safes = (ST.safes || 0) + 1; B.msg = `TRESOR GEKNACKT! +$${B.safeV}`; B.msgT = 3; jingle(true); }
+        else { B.alarm = true; B.msg = 'ALARM! Die Wachen kommen!'; B.msgT = 2.6; tone(300, .4, 'sawtooth', .16, 150); for (const g of B.guards) if (g.state !== 'chase') { g.state = 'look'; g.tx = I.x; g.ty = I.y; g.wait = 4; g.al = Math.max(g.al, .5); } } });
+    } }; } }
+  }
+  B.hint = act ? act.t : '';
+  if (inp.use) { inp.use = false; if (act) act.f(); }
+  for (const g of B.guards) burGuard(B, g, dt, I); B.al = B.guards.reduce((m, g) => Math.max(m, g.state === 'chase' ? 1 : g.al), 0);
+  if (inp.wpn) inp.wpn = false;
+}
+function exitBur(caught) {
+  const I = inside, B = I.bur, sh = I.sh; inputsReset(); let msg;
+  if (caught) { const f = Math.min(money, 100 * B.lv); money -= f; addHeat(15 + 15 * B.lv); msg = `ERWISCHT! Beute weg, Strafe -$${f}`; }
+  else { if (B.got > 0) { money += B.got; ST.burg = (ST.burg || 0) + 1; msg = `Entkommen mit $${B.got}!`; jingle(true); } else msg = 'Du bist wieder draußen.'; if (B.alarm) addHeat(8 + 8 * B.lv); }
+  if (B.got > 0 || caught) sh.empty = ST.time + 600;
+  tone(880, .1, 'sine', .1); tone(660, .12, 'sine', .1, 0, .1); save();
+  fadeTo(() => { inside = null; p.x = sh.x + DX[sh.dir] * 26; p.y = sh.y + DY[sh.dir] * 26; if (!footFree(p.x, p.y)) { p.x = sh.x; p.y = sh.y; } shopLock = sh; camX = p.x; camY = p.y; toast(msg, caught ? '#f55' : '#ffd200', 3.2); });
+}
+function burCone(B, g) {
+  const R = burRange(B), fov = 1, pts = [[g.x, g.y]], N = 22;
+  for (let i = 0; i <= N; i++) { const a = g.a - fov / 2 + fov * i / N; let t = 6; for (; t < R; t += 5) if (burWall(B, g.x + Math.cos(a) * t, g.y + Math.sin(a) * t)) break; pts.push([g.x + Math.cos(a) * t, g.y + Math.sin(a) * t]); }
+  return pts;
+}
+const BUR_FL = [['#8a6a48', '#7f6140'], ['#cfd2d8', '#c3c7ce'], ['#6e4d5e', '#644457'], ['#80828a', '#777981']];
+function burFurn(f) {
+  const { x, y, w, h } = f; ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(x + 2, y + 3, w, h);
+  if (f.k === 'table' || f.k === 'coffee') {
+    if (f.k === 'table') { ctx.fillStyle = '#6a4a2a'; for (const cx of [x + 5, x + w - 13]) { ctx.fillRect(cx, y - 6, 8, 6); ctx.fillRect(cx, y + h, 8, 6); } }
+    ctx.fillStyle = '#a97a44'; rr(x, y, w, h, 3); ctx.fill(); ctx.strokeStyle = '#3d2610'; ctx.lineWidth = 1.2; ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,.2)'; ctx.fillRect(x + 2, y + 2, w - 4, 3);
+    if (f.k === 'table') { ctx.fillStyle = '#efe9d6'; ctx.beginPath(); ctx.arc(x + w * .3, y + h / 2, 4, 0, TAU); ctx.arc(x + w * .75, y + h / 2, 4, 0, TAU); ctx.fill(); }
+  } else if (f.k === 'bed') {
+    ctx.fillStyle = '#efece2'; rr(x, y, w, h, 4); ctx.fill(); ctx.fillStyle = '#3a6aa8'; rr(x + 16, y + 1, w - 17, h - 2, 3); ctx.fill(); ctx.fillStyle = '#fff'; rr(x + 3, y + 5, 12, h - 10, 4); ctx.fill(); ctx.strokeStyle = '#222'; ctx.lineWidth = 1.2; rr(x, y, w, h, 4); ctx.stroke();
+  } else if (f.k === 'stand') { ctx.fillStyle = '#8a6a44'; rr(x + 1, y + 1, w - 2, h - 2, 2); ctx.fill(); ctx.strokeStyle = '#2a1a0a'; ctx.stroke(); ctx.fillStyle = '#ffe9a0'; ctx.beginPath(); ctx.arc(x + 10, y + 10, 3, 0, TAU); ctx.fill(); }
+  else if (f.k === 'desk') { ctx.fillStyle = '#6b5a48'; rr(x, y, w, h, 3); ctx.fill(); ctx.strokeStyle = '#1a140c'; ctx.lineWidth = 1.2; ctx.stroke(); ctx.fillStyle = '#1b1b22'; ctx.fillRect(x + 6, y + 3, 14, 10); ctx.fillStyle = '#5ad0ff'; ctx.fillRect(x + 8, y + 5, 10, 6); }
+  else if (f.k === 'sofa') { ctx.fillStyle = '#a83a3a'; rr(x, y, w, h, 5); ctx.fill(); ctx.fillStyle = '#7a2626'; ctx.fillRect(x + 2, f.top ? y + 1 : y + h - 6, w - 4, 5); ctx.strokeStyle = '#2a0a0a'; ctx.lineWidth = 1.2; rr(x, y, w, h, 5); ctx.stroke(); }
+}
+function burHide(h, open) {
+  const { x, y, w, h: hh } = h; ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.fillRect(x + 2, y + 3, w, hh); ctx.fillStyle = '#6b4a2a'; rr(x, y, w, hh, 2); ctx.fill(); ctx.strokeStyle = '#1e1208'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = open ? '#2a1a0c' : '#855a34'; ctx.fillRect(x + 2, y + 2, w / 2 - 3, hh - 4); ctx.fillRect(x + w / 2 + 1, y + 2, w / 2 - 3, hh - 4); ctx.fillStyle = '#ffd23a'; ctx.fillRect(x + w / 2 - 4, y + hh / 2 - 1, 2, 3); ctx.fillRect(x + w / 2 + 2, y + hh / 2 - 1, 2, 3);
+}
+let burDk = null;
+function renderBur() {
+  const I = inside, B = I.bur, D = B.D, u = Math.max(.8, Math.min(vw, vh) / 700), zb = Math.max(1.7, Math.min(vw, vh) / 300), G = B.G, W = B.GW;
+  ctx.fillStyle = '#05060b'; ctx.fillRect(0, 0, vw, vh);
+  ctx.save(); ctx.translate(vw / 2, vh / 2); ctx.scale(zb, zb); ctx.translate(-I.x, -I.y);
+  const hw = vw / zb / 2 + BT, hh = vh / zb / 2 + BT, tx0 = Math.max(0, Math.floor((I.x - hw) / BT)), tx1 = Math.min(W - 1, Math.ceil((I.x + hw) / BT)), ty0 = Math.max(0, Math.floor((I.y - hh) / BT)), ty1 = Math.min(B.GH - 1, Math.ceil((I.y + hh) / BT));
+  for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+    const X = tx * BT, Y = ty * BT;
+    if (ty > D.r * BRH) { ctx.fillStyle = '#23262e'; ctx.fillRect(X, Y, BT, BT); continue; }
+    if (G[ty * W + tx] === 1) { ctx.fillStyle = '#2f2a3a'; ctx.fillRect(X, Y, BT, BT); ctx.fillStyle = '#463f56'; ctx.fillRect(X, Y, BT, 4); ctx.fillStyle = '#1c1824'; ctx.fillRect(X, Y + BT - 3, BT, 3); continue; }
+    const rm = B.rooms[Math.min(D.r - 1, Math.floor(ty / BRH)) * D.c + Math.min(D.c - 1, Math.floor(tx / BRW))], fl = BUR_FL[rm ? rm.th : 0];
+    ctx.fillStyle = (tx + ty) % 2 ? fl[0] : fl[1]; ctx.fillRect(X, Y, BT, BT);
+    if (ty > 0 && G[(ty - 1) * W + tx] === 1) { ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(X, Y, BT, 6); }
+  }
+  ctx.fillStyle = '#5a1f1f'; ctx.fillRect(6 * BT, D.r * BRH * BT - 2, 3 * BT, 5); text('AUSGANG ▼', 7.5 * BT, (D.r * BRH + 1) * BT + 6, 8, '#ffd23a');
+  for (const q of B.paints) { ctx.save(); ctx.translate(q.x, q.y); if (q.vert) ctx.rotate(Math.PI / 2); if (q.safe) ctx.rotate(.09); ctx.fillStyle = '#2a1a0a'; ctx.fillRect(-11, -8, 22, 16); ctx.fillStyle = q.c; ctx.fillRect(-9, -6, 18, 12); ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.fillRect(-9, -6, 18, 3); ctx.restore(); }
+  for (const f of B.furn) burFurn(f);
+  for (const h of B.hides) burHide(h, B.hid === h);
+  for (const q of B.loot) if (!q.got) { const bob = Math.sin(time * 4 + q.x) * 1.2; ctx.font = '13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(q.e, q.x, q.y + bob); ctx.fillStyle = `rgba(255,240,150,${.35 + .35 * Math.sin(time * 6 + q.y)})`; ctx.fillRect(q.x + 5, q.y - 8 + bob, 2, 2); }
+  const cones = B.guards.map(g => burCone(B, g));
+  B.guards.forEach((g, i) => { const c = cones[i]; ctx.beginPath(); ctx.moveTo(c[0][0], c[0][1]); for (let j = 1; j < c.length; j++) ctx.lineTo(c[j][0], c[j][1]); ctx.closePath(); ctx.fillStyle = g.state === 'chase' ? 'rgba(255,70,50,.22)' : g.state === 'look' ? 'rgba(255,200,80,.2)' : 'rgba(255,240,170,.15)'; ctx.fill(); });
+  for (const g of B.guards) { ctx.save(); ctx.translate(g.x, g.y); ctx.scale(1.15, 1.15); drawPerson(0, 0, g.a, g.state === 'chase' ? '#8a2a2a' : '#2a3a6a', g.ph, false, false, '#d8a070', '#222'); ctx.restore(); ctx.fillStyle = '#fff6b0'; ctx.beginPath(); ctx.arc(g.x + Math.cos(g.a) * 9, g.y + Math.sin(g.a) * 9, 2.4, 0, TAU); ctx.fill();
+    if (g.state !== 'patrol' || g.al > .1) text(g.state === 'chase' ? '!' : '?', g.x, g.y - 14, 13, g.state === 'chase' ? '#ff4040' : '#ffd23a'); }
+  if (!B.hid) { ctx.save(); ctx.translate(I.x, I.y); ctx.scale(1.15, 1.15); drawPerson(0, 0, I.a, OUTFIT[outfit], I.ph, true); ctx.restore(); if (B.run) { ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(I.x, I.y, 22 + Math.sin(time * 12) * 3, 0, TAU); ctx.stroke(); } }
+  // Dunkelheit mit Lichtkegeln
+  const cv = ctx.canvas; if (!burDk) burDk = document.createElement('canvas'); if (burDk.width !== cv.width || burDk.height !== cv.height) { burDk.width = cv.width; burDk.height = cv.height; }
+  const d = burDk.getContext('2d'); d.setTransform(1, 0, 0, 1, 0, 0); d.globalCompositeOperation = 'source-over'; d.clearRect(0, 0, burDk.width, burDk.height); d.setTransform(dpr, 0, 0, dpr, 0, 0); d.fillStyle = 'rgba(3,5,14,.88)'; d.fillRect(0, 0, vw, vh);
+  d.save(); d.translate(vw / 2, vh / 2); d.scale(zb, zb); d.translate(-I.x, -I.y); d.globalCompositeOperation = 'destination-out';
+  const lg = (x, y, r, a0, a1) => { const gr = d.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(0,0,0,${a0})`); gr.addColorStop(1, `rgba(0,0,0,${a1})`); return gr; };
+  d.fillStyle = lg(I.x, I.y, 62, .75, 0); d.beginPath(); d.arc(I.x, I.y, 62, 0, TAU); d.fill();
+  B.guards.forEach((g, i) => { const c = cones[i]; d.fillStyle = lg(g.x, g.y, burRange(B), .96, .2); d.beginPath(); d.moveTo(c[0][0], c[0][1]); for (let j = 1; j < c.length; j++) d.lineTo(c[j][0], c[j][1]); d.closePath(); d.fill(); d.fillStyle = lg(g.x, g.y, 26, .55, 0); d.beginPath(); d.arc(g.x, g.y, 26, 0, TAU); d.fill(); });
+  d.fillStyle = lg(7.5 * BT, D.r * BRH * BT + 10, 46, .6, 0); d.beginPath(); d.arc(7.5 * BT, D.r * BRH * BT + 10, 46, 0, TAU); d.fill();
+  d.restore(); ctx.restore(); ctx.drawImage(burDk, 0, 0, vw, vh);
+  // Oberflaeche
+  panel(vw / 2 - 150 * u, 6 * u, 300 * u, 40 * u); text(`🔦 ${D.n} · STUFE ${B.lv}`, vw / 2, 19 * u, 14 * u, '#fff'); text('Tasche: $' + B.got, vw / 2, 37 * u, 16 * u, '#7dff7d');
+  const bw = 150 * u; ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(vw / 2 - bw / 2, 52 * u, bw, 9 * u); ctx.fillStyle = B.al >= 1 ? '#ff3030' : B.al > .45 ? '#ff9a2a' : '#ffd23a'; ctx.fillRect(vw / 2 - bw / 2, 52 * u, bw * B.al, 9 * u); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeRect(vw / 2 - bw / 2, 52 * u, bw, 9 * u);
+  text(B.hid ? 'VERSTECKT – unsichtbar' : B.al > .05 ? 'ENTDECKUNGS-GEFAHR' : 'unentdeckt', vw / 2, 72 * u, 11 * u, B.hid ? '#7fd0ff' : '#ddd');
+  if (B.hint) text('AKTION: ' + B.hint, vw / 2, vh - 90 * u, 17 * u, '#ffe14d');
+  if (B.msgT > 0) { ctx.globalAlpha = Math.min(1, B.msgT * 2); text(B.msg, vw / 2, vh * .3, 22 * u, B.caught > 0 ? '#ff5555' : '#fff'); ctx.globalAlpha = 1; }
+  if (toastT > 0) { ctx.globalAlpha = Math.min(1, toastT * 2); text(toastTxt, vw / 2, vh * .22, 22 * u, toastCol); ctx.globalAlpha = 1; }
+}
 function exitShop() {
   const sh = inside.sh; inputsReset(); tone(880, .1, 'sine', .1); tone(660, .12, 'sine', .1, 0, .1);
   fadeTo(() => { inside = null; p.x = sh.x + DX[sh.dir] * 26; p.y = sh.y + DY[sh.dir] * 26; if (!footFree(p.x, p.y)) { p.x = sh.x; p.y = sh.y; } shopLock = sh; camX = p.x; camY = p.y; });
 }
 function updInside(dt) {
+  if (inside.bur) { updBur(dt); return; }
   const I = inside, R = ROOM[I.sh.k] || ROOM.item; time += dt; I.t += dt; if (toastT > 0) toastT -= dt;
   const k = keys, kx = (k.ArrowRight || k.KeyD ? 1 : 0) - (k.ArrowLeft || k.KeyA ? 1 : 0), ky = (k.ArrowDown || k.KeyS ? 1 : 0) - (k.ArrowUp || k.KeyW ? 1 : 0);
   let mx = (Math.abs(inp.sx) < .12 ? 0 : inp.sx) + kx, my = (Math.abs(inp.sy) < .12 ? 0 : inp.sy) + ky, l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; l = 1; }
@@ -2062,6 +2281,7 @@ function updInside(dt) {
   if (inp.wpn) inp.wpn = false;
 }
 function renderInside() {
+  if (inside.bur) { renderBur(); return; }
   const I = inside, R = ROOM[I.sh.k] || ROOM.item, u = Math.max(.8, Math.min(vw, vh) / 700), z = Math.min(vw / (RW + 40), vh / (RH + 130)), ox = (vw - RW * z) / 2, oy = Math.max(60 * u, (vh - RH * z) / 2 - 6);
   ctx.save(); ctx.translate(ox, oy); ctx.scale(z, z);
   roomBase(R.floor[0], R.floor[1], R.wall); R.draw();
@@ -2267,7 +2487,7 @@ function buildWorld(z, carry) {
   const nearCurb = (x, y) => curb.reduce((b, q) => { const cx = (q[0] + .5) * TS, cy = (q[1] + .5) * TS, d = dist(cx, cy, x, y); return !b || d < b.d ? { x: cx, y: cy, d } : b; }, null);
   const place = list => list.forEach(([k, bx, by, f]) => { const o = Object.assign(curbIn(bx, by), SH[k]); if (f != null) { const l = curb.filter(c => Math.floor(c[0] / PER) === bx && Math.floor(c[1] / PER) === by); const c = l[Math.floor(l.length * f)] || l[0]; if (c) { o.x = (c[0] + .5) * TS; o.y = (c[1] + .5) * TS; } } shops.push(o); });
   if (z === 0) {
-    place([[0, 1, 2], [1, 4, 2], [2, 2, 1], [3, 1, 3], [4, 3, 1], [5, 4, 4], [4, 3, 6], [1, 7, 7], [6, 2, 4], [6, 2, 7], [6, 6, 7], [7, 1, 4], [7, 3, 7], [7, 6, 6], [8, 4, 3], [8, 4, 7], [8, 7, 6], [9, 1, 1], [9, 2, 6], [9, 1, 7], [10, 3, 2], [11, 4, 1], [12, 7, 7, .8]]);
+    place([[0, 1, 2], [1, 4, 2], [2, 2, 1], [3, 1, 3], [4, 3, 1], [5, 4, 4], [4, 3, 6], [1, 7, 7], [6, 2, 4], [6, 2, 7], [6, 6, 7], [7, 1, 4], [7, 3, 7], [7, 6, 6], [8, 4, 3], [8, 4, 7], [8, 7, 6], [9, 1, 1], [9, 2, 6], [9, 1, 7], [10, 3, 2], [11, 4, 1], [12, 7, 7, .8], [13, 1, 2, .2], [13, 2, 1, .8], [13, 6, 6, .2], [13, 1, 4, .8], [13, 7, 6, .2], [14, 4, 2, .8], [14, 3, 6, .8], [14, 2, 6, .2], [14, 6, 7, .2], [15, 4, 4, .8], [15, 3, 7, .2]]);
     shops.push(Object.assign({ x: 62.5 * TS, y: 25.5 * TS }, SH[6]));                                                          // Bahnhof Waldinsel
     ZS = SPAWN; hosp = nearCurb(W / 2 + 150, W / 2 + 60); dump = nearCurb((PER + 5) * TS, (PER * 6 + 5) * TS);
   } else {
@@ -2314,7 +2534,7 @@ function loop(ts) {
   render(); if (photoReq && --photoReq === 0) takePhoto();
 }
 init(); requestAnimationFrame(loop);
-if (location.hash === '#debug') window.__rc = { dmgCar, cash, sigs, lightState, get mission() { return mission; }, get fog() { return fog; }, set fog(v) { fog = v; }, get snow() { return snow; }, set snow(v) { snow = v; }, shots, useBtn, blockType, curb, openMenu, p, cars, peds, shops, inp, S, ramps, mc, tileAt, startGame, update, render, island, landB, cam: () => [camX, camY, zoom], setCam: (x, y) => { camX = x; camY = y; }, get started() { return started; }, get money() { return money; }, set money(v) { money = v; }, get mission() { return mission; }, startMission, get npc() { return npc; }, get heistBonus() { return heistBonus; }, startLock, startHeist, get mini() { return mini; }, tgts, get pickLv() { return pickLv; }, set pickLv(v) { pickLv = v; }, get heistReady() { return heistReady; }, set heistReady(v) { heistReady = v; }, npcBtn, burgleBtn, buildWorld, fetchCar, get zone() { return ZONE; }, get lastOwn() { return lastOwn; }, set lastOwn(v) { lastOwn = v; }, owned, startRide, arriveAt, startAccident, helpers, tanks, jets, bombs, get chaos() { return chaos; }, set chaos(v) { chaos = v; }, wp, ST, enterShop, exitShop, startRide, get inside() { return inside; }, get ride() { return ride; }, get dead() { return dead; }, tramStops, tram: () => tram, openMenuX: () => menu, wasted, busted, respawn, reviveNow, inv, useItem, startJob, endJob, renderHot, hosp: () => hosp, dump: () => dump, get jobSt() { return jobSt; }, get stars() { return stars; }, get heat() { return heat; }, get armor() { return p.armor; }, addHeat, toggleBig: () => { bigMap = !bigMap; $('mapHit').classList.toggle('big', bigMap); }, W, N, TS, PER, NB };
+if (location.hash === '#debug') window.__rc = { updBur, burGen, enterBur, get inside() { return inside; }, get shops() { return shops; }, dmgCar, cash, sigs, lightState, get mission() { return mission; }, get fog() { return fog; }, set fog(v) { fog = v; }, get snow() { return snow; }, set snow(v) { snow = v; }, shots, useBtn, blockType, curb, openMenu, p, cars, peds, shops, inp, S, ramps, mc, tileAt, startGame, update, render, island, landB, cam: () => [camX, camY, zoom], setCam: (x, y) => { camX = x; camY = y; }, get started() { return started; }, get money() { return money; }, set money(v) { money = v; }, get mission() { return mission; }, startMission, get npc() { return npc; }, get heistBonus() { return heistBonus; }, startLock, startHeist, get mini() { return mini; }, tgts, get pickLv() { return pickLv; }, set pickLv(v) { pickLv = v; }, get heistReady() { return heistReady; }, set heistReady(v) { heistReady = v; }, npcBtn, burgleBtn, buildWorld, fetchCar, get zone() { return ZONE; }, get lastOwn() { return lastOwn; }, set lastOwn(v) { lastOwn = v; }, owned, startRide, arriveAt, startAccident, helpers, tanks, jets, bombs, get chaos() { return chaos; }, set chaos(v) { chaos = v; }, wp, ST, enterShop, exitShop, startRide, get inside() { return inside; }, get ride() { return ride; }, get dead() { return dead; }, tramStops, tram: () => tram, openMenuX: () => menu, wasted, busted, respawn, reviveNow, inv, useItem, startJob, endJob, renderHot, hosp: () => hosp, dump: () => dump, get jobSt() { return jobSt; }, get stars() { return stars; }, get heat() { return heat; }, get armor() { return p.armor; }, addHeat, toggleBig: () => { bigMap = !bigMap; $('mapHit').classList.toggle('big', bigMap); }, W, N, TS, PER, NB };
 })();
 </script>
 </body>
