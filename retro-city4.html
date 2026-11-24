@@ -164,7 +164,7 @@ function blockType(bx, by) {
   if (ZONE === 1) {                                              // Bergland: Dorf in der Mitte, See, Wälder, sonst Gebirge
     if (bx >= 3 && bx <= 4 && by >= 3 && by <= 4) return (bx + by) % 2 ? 'sub' : 'shop';
     if (bx === 0 && by === 4) return 'sub';
-    if (bx >= 1 && bx <= 2 && by >= 5 && by <= 6) return 'sea';
+    if (bx >= 0 && bx <= 2 && by >= 5 && by <= 6) return 'sea';
     if (bx === 5 && by === 2) return 'park';
     return (bx * 3 + by * 5) % 4 === 0 ? 'forest' : 'mount';
   }
@@ -189,11 +189,11 @@ function island(x, y) {                 // 0 Hauptinsel, 1 Wald, 2 Süd, 3 Ferie
 function buildMap() {
   let seed = 11 + ZONE * 7; const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };   // fester Zufall → gleiche Stadt
   const rr_ = (a, b) => a + r() * (b - a), col = a => a[Math.floor(r() * a.length)];
-  const forestPath = new Set();
+  const forestPath = new Set(); const tunB = (bx, by) => ZONE === 1 && blockType(bx, by) === 'mount' && (bx * 5 + by * 3) % 7 === 2;
   for (let ty = 0; ty < N; ty++) for (let tx = 0; tx < N; tx++) {
     const mx = tx % PER, my = ty % PER, bx = (tx / PER) | 0, by = (ty / PER) | 0, bt = blockType(bx, by); let t, dirt = false;
     const road = (mx < 2 && my < 2) ? (roadH(bx - 1, by) || roadH(bx, by) || roadV(bx, by - 1) || roadV(bx, by)) : my < 2 ? roadH(bx, by) : mx < 2 ? roadV(bx, by) : false;
-    if (road) t = 0;
+    if (road || (tunB(bx, by) && mx >= 2 && (my === 4 || my === 5))) t = 0;
     else if (bt === 'sea' || mx < 2 || my < 2) t = 5;
     else if (bt === 'forest') { const path = mx === 2 || my === 2 || mx === 5 || mx === 6 || my === 5 || my === 6; dirt = path; t = (path || r() > .6) ? 3 : 4; }
     else if (mx === 2 || mx === 9 || my === 2 || my === 9) t = 1;
@@ -374,6 +374,16 @@ function buildMap() {
       g.fillStyle = 'rgba(0,0,0,.22)'; g.beginPath(); g.moveTo(cx, oy + 8); g.lineTo(ox + S - 24, cy + 50); g.lineTo(cx + 12, cy + 24); g.closePath(); g.fill();
       if (hi) { g.fillStyle = '#f4f8ff'; g.beginPath(); g.moveTo(cx, oy + 16); g.lineTo(cx - 44, cy - 6); g.lineTo(cx - 20, cy + 2); g.lineTo(cx - 4, cy - 16); g.lineTo(cx + 14, cy); g.lineTo(cx + 46, cy - 12); g.closePath(); g.fill(); g.strokeStyle = 'rgba(110,140,190,.6)'; g.lineWidth = 2; g.stroke(); }
       for (let i = 0; i < 16; i++) { const tx = ox + 10 + r() * (S - 20), ty = oy + S - 62 + r() * 54; g.fillStyle = '#1f5a2c'; g.beginPath(); g.moveTo(tx, ty - 15); g.lineTo(tx - 8, ty + 6); g.lineTo(tx + 8, ty + 6); g.closePath(); g.fill(); g.fillStyle = '#2b7a3c'; g.beginPath(); g.moveTo(tx - 1, ty - 12); g.lineTo(tx - 8, ty + 4); g.lineTo(tx - 1, ty + 4); g.closePath(); g.fill(); }
+      for (const [fx, fy, fs2] of [[.26, .68, 1], [.74, .64, .85]]) { const px = ox + S * fx, py = oy + S * fy, hh = 66 * fs2, ww = 44 * fs2;      // zusaetzliche Gipfel
+        g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.moveTo(px + 4, py - hh + 6); g.lineTo(px + ww + 14, py + 18); g.lineTo(px - ww * .4, py + 18); g.closePath(); g.fill();
+        g.fillStyle = '#8e939f'; g.beginPath(); g.moveTo(px, py - hh); g.lineTo(px - ww, py + 14); g.lineTo(px + 2, py + 14); g.closePath(); g.fill(); g.fillStyle = '#4a4e59'; g.beginPath(); g.moveTo(px, py - hh); g.lineTo(px + ww, py + 14); g.lineTo(px + 2, py + 14); g.closePath(); g.fill();
+        g.fillStyle = '#f4f8ff'; g.beginPath(); g.moveTo(px, py - hh); g.lineTo(px - ww * .34, py - hh * .6); g.lineTo(px - ww * .1, py - hh * .68); g.lineTo(px + ww * .12, py - hh * .56); g.lineTo(px + ww * .34, py - hh * .6); g.closePath(); g.fill(); }
+      if (tunB(bx, by)) {                                           // Tunnel: Strasse mitten durch den Berg mit Portalen
+        const X0 = (bx * PER + 2) * TS, Y0 = (by * PER + 4) * TS, TW = 8 * TS, TH = 2 * TS; tunnels.push({ x: X0, y: Y0, w: TW, h: TH });
+        g.fillStyle = '#1b1c21'; g.fillRect(X0, Y0, TW, TH); g.strokeStyle = '#8a7a20'; g.lineWidth = 2; g.setLineDash([12, 12]); g.beginPath(); g.moveTo(X0, Y0 + TH / 2); g.lineTo(X0 + TW, Y0 + TH / 2); g.stroke(); g.setLineDash([]);
+        for (const [px, dr] of [[X0, 1], [X0 + TW, -1]]) { g.fillStyle = '#2a2d36'; g.fillRect(Math.min(px - dr * 2, px + dr * 20), Y0 - 12, 22, TH + 24); g.fillStyle = '#0d0e12'; g.fillRect(Math.min(px, px + dr * 14), Y0, 14, TH);
+          for (let k = 0; k < 4; k++) { g.fillStyle = k % 2 ? '#111' : '#f2c230'; g.fillRect(px + dr * 18 - (dr > 0 ? 0 : 4), Y0 - 12 + k * (TH + 24) / 4, 4, (TH + 24) / 4); } }
+        g.fillStyle = '#fff'; g.font = 'bold 11px sans-serif'; g.textAlign = 'center'; g.fillText('TUNNEL', X0 + TW / 2, Y0 - 16); }
     } else {   // Park
       g.fillStyle = '#3e8c3a'; g.fillRect(ox, oy, S, S); g.fillStyle = '#d6c79a'; g.fillRect(ox + S / 2 - 9, oy, 18, S); g.fillRect(ox, oy + S / 2 - 9, S, 18);
       g.fillStyle = '#2e6fb8'; g.beginPath(); g.ellipse(ox + 70, oy + 70, 46, 34, 0, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.ellipse(ox + 60, oy + 62, 22, 12, 0, 0, TAU); g.fill();
@@ -474,6 +484,7 @@ const tgts = [], bld = [];
 let hosp = null, dump = null, jobSt = null, jobCar = null;
 let mission = null, menu = null, shopLock = null, taxi = null, heli = null, heliT = 0, heliSnd = 0, blkT = 0, tram = null;
 const P = () => p.car || p;                       // aktuelle Spielerposition (Auto oder zu Fuß)
+const BOATS_PRE = 0;
 const BOAT = { n: 'Motorboot', c: '#f4f4f4', max: 300, acc: 260, grip: 1.6, st: 1.8, m: 1.2, l: 54, w: 24, sh: 'boat', boat: 1 };
 const ter = [{ n: 'Rote Ratten', col: '#e03030', bx: 1, by: 1 }, { n: 'Blaue Haie', col: '#3a7bd5', bx: 4, by: 1 }, { n: 'Gelbe Hunde', col: '#e0b020', bx: 1, by: 4 }, { n: 'Grüne Schlangen', col: '#3cb44b', bx: 4, by: 4 }];
 ter.forEach(t => { t.x0 = (PER * t.bx + 2) * TS; t.y0 = (PER * t.by + 2) * TS; t.x1 = t.x0 + 8 * TS; t.y1 = t.y0 + 8 * TS; t.str = 100; t.own = false; t.w = []; });
@@ -492,6 +503,16 @@ function hurt(d) { if (p.armor > 0) { const a = Math.min(p.armor, d); p.armor -=
 const copNear = r => { const T = P(); return cars.some(c => c.t.police && !c.wreck && dist(c.x, c.y, T.x, T.y) < r) || peds.some(q => q.cop && !q.dead && dist(q.x, q.y, T.x, T.y) < r); };
 function addHeat(v) { heat = Math.min(100, heat + v); }
 
+const BOATS = [
+  { n: 'Ruderboot', pr: 800, c: '#a9743a', max: 95, acc: 85, grip: 1.6, st: 2.2, m: .8, l: 36, w: 17, sh: 'boat', boat: 1, bk: 'row' },
+  { n: 'Jetski', pr: 4000, c: '#ff7a1a', max: 400, acc: 380, grip: 1.9, st: 2.6, m: .8, l: 32, w: 15, sh: 'boat', boat: 1, bk: 'ski' },
+  { n: 'Fischerboot', pr: 6000, c: '#2e6fb8', max: 165, acc: 140, grip: 1.4, st: 1.5, m: 1.6, l: 64, w: 28, sh: 'boat', boat: 1, bk: 'fish' },
+  Object.assign({ pr: 9000, bk: 'motor' }, BOAT),
+  { n: 'Segelboot', pr: 12000, c: '#f4f4f4', max: 210, acc: 110, grip: 1.3, st: 1.4, m: 1.4, l: 70, w: 24, sh: 'boat', boat: 1, bk: 'sail' },
+  { n: 'Schnellboot', pr: 18000, c: '#e04040', max: 450, acc: 380, grip: 1.6, st: 1.7, m: 1.2, l: 62, w: 22, sh: 'boat', boat: 1, bk: 'speed' },
+  { n: 'Hausboot', pr: 30000, c: '#d8c9a0', max: 72, acc: 60, grip: 1.1, st: 1.0, m: 3, l: 96, w: 42, sh: 'boat', boat: 1, bk: 'house' },
+  { n: 'Yacht', pr: 80000, c: '#fafafa', max: 350, acc: 270, grip: 1.3, st: 1.2, m: 3.2, l: 112, w: 38, sh: 'boat', boat: 1, bk: 'yacht' }
+];
 function applyUp(c) {                              // Tuning-Stufen in Werte umrechnen
   const t = c.t, u = c.up; c.max = t.max * (1 + .07 * u.e); c.acc = t.acc * (1 + .1 * u.e); c.grip = t.grip * (1 + .12 * u.t); c.hpm = (t.hp || 100) + 35 * u.a;
 }
@@ -772,9 +793,22 @@ function boatDrive(c, dt) {                   // Patrouillenboot kreuzt im Meer,
   if (!f || !l || !r) st = (l && !r) ? -1 : (r && !l) ? 1 : (c.bt || (c.bt = Math.random() < .5 ? 1 : -1)); else { c.bt = 0; if (c.fl <= 0) { c.fl = rnd(2, 6); c.wob = rnd(-.45, .45); } st = c.wob || 0; }
   const vf = c.vx * ca + c.vy * sa; driveCar(c, vf < 120 ? 1 : 0, st, dt, false);
 }
-function drawBoat(L, Wd, col, wreck) {
-  const hl = L / 2, hw = Wd / 2; ctx.beginPath(); ctx.moveTo(hl, 0); ctx.quadraticCurveTo(hl * .45, -hw, -hl * .6, -hw); ctx.lineTo(-hl, -hw * .75); ctx.lineTo(-hl, hw * .75); ctx.lineTo(-hl * .6, hw); ctx.quadraticCurveTo(hl * .45, hw, hl, 0); ctx.closePath();
-  ctx.fillStyle = wreck ? '#2b2b2b' : col; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = '#000'; ctx.stroke(); if (wreck) return;
+function drawBoat(L, Wd, col, wreck, bk) {
+  const hl = L / 2, hw = Wd / 2; bk = bk || 'motor'; ctx.beginPath();
+  if (bk === 'house') { ctx.moveTo(hl, -hw * .55); ctx.lineTo(hl * .85, -hw); ctx.lineTo(-hl, -hw); ctx.lineTo(-hl, hw); ctx.lineTo(hl * .85, hw); ctx.lineTo(hl, hw * .55); }
+  else { ctx.moveTo(hl, 0); ctx.quadraticCurveTo(hl * .45, -hw, -hl * .6, -hw); ctx.lineTo(-hl, -hw * .75); ctx.lineTo(-hl, hw * .75); ctx.lineTo(-hl * .6, hw); ctx.quadraticCurveTo(hl * .45, hw, hl, 0); }
+  ctx.closePath(); ctx.fillStyle = wreck ? '#2b2b2b' : col; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = '#000'; ctx.stroke(); if (wreck) return;
+  if (bk === 'house') {
+    ctx.fillStyle = '#f2ead6'; rr(-hl * .85, -hw * .72, hl * 1.4, hw * 1.44, 3); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#b5532f'; rr(-hl * .9, -hw * .8, hl * 1.5, hw * 1.6, 4); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.25)'; for (let i = 0; i < 6; i++) ctx.fillRect(-hl * .88 + i * hl * .25, -hw * .78, 3, hw * 1.56); ctx.fillStyle = '#3a2a22'; ctx.fillRect(-hl * .4, -hw * .25, 7, 7); ctx.fillStyle = '#6a7a7a'; ctx.fillRect(hl * .25, hw * .1, 12, 5);
+    ctx.fillStyle = '#2f9a4a'; for (const sy of [-1, 1]) { ctx.beginPath(); ctx.arc(hl * .72, sy * hw * .62, 4, 0, TAU); ctx.fill(); } return; }
+  if (bk === 'yacht') { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(hl * .7, 0); ctx.lineTo(hl * .1, -hw * .7); ctx.lineTo(-hl * .9, -hw * .7); ctx.lineTo(-hl * .9, hw * .7); ctx.lineTo(hl * .1, hw * .7); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#1d2e44'; ctx.fillRect(-hl * .3, -hw * .5, hl * .5, hw); ctx.fillStyle = '#c9a36a'; ctx.fillRect(-hl * .85, -hw * .5, hl * .45, hw); ctx.fillStyle = '#4aa8e8'; ctx.fillRect(-hl * .75, -hw * .3, hl * .25, hw * .6); ctx.fillStyle = '#e8e8e8'; ctx.fillRect(hl * .25, -2, hl * .25, 4); return; }
+  if (bk === 'sail') { ctx.fillStyle = '#c9a36a'; ctx.fillRect(-hl * .7, -hw * .5, hl * 1.1, hw); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(hl * .55, 0); ctx.lineTo(-hl * .85, -hw * .1); ctx.lineTo(-hl * .85, hw * .95); ctx.lineTo(hl * .1, hw * .3); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#3a3a3a'; ctx.beginPath(); ctx.arc(hl * .12, 0, 2.4, 0, TAU); ctx.fill(); return; }
+  if (bk === 'speed') { ctx.fillStyle = '#fff'; ctx.fillRect(-hl * .75, -2, hl * 1.2, 4); ctx.fillStyle = '#22364a'; ctx.fillRect(-hl * .1, -hw * .4, hl * .35, hw * .8); ctx.fillStyle = '#1a1a1a'; ctx.fillRect(-hl * .9, -hw * .3, hl * .25, hw * .6); return; }
+  if (bk === 'ski') { ctx.fillStyle = '#222'; ctx.fillRect(-hl * .5, -hw * .3, hl * .7, hw * .6); ctx.fillStyle = '#ddd'; ctx.fillRect(hl * .25, -hw * .6, 2, hw * 1.2); return; }
+  if (bk === 'row') { ctx.fillStyle = '#8a5a2a'; for (const x of [-hl * .4, hl * .1]) ctx.fillRect(x, -hw * .8, 4, hw * 1.6); ctx.strokeStyle = '#d8c9a0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-hl * .1, -hw * 1.3); ctx.lineTo(-hl * .1, -hw * .5); ctx.moveTo(-hl * .1, hw * 1.3); ctx.lineTo(-hl * .1, hw * .5); ctx.stroke(); return; }
+  if (bk === 'fish') { ctx.fillStyle = '#e8e8e8'; ctx.fillRect(-hl * .25, -hw * .55, hl * .45, hw * 1.1); ctx.fillStyle = '#22364a'; ctx.fillRect(hl * .05, -hw * .4, hl * .12, hw * .8); ctx.fillStyle = '#c9a36a'; ctx.fillRect(-hl * .85, -hw * .5, hl * .5, hw); ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-hl * .5, -hw * .5); ctx.lineTo(-hl * .5, hw * .5); ctx.stroke(); return; }
   ctx.fillStyle = '#c9a36a'; ctx.beginPath(); ctx.moveTo(hl * .55, 0); ctx.lineTo(-hl * .1, -hw * .6); ctx.lineTo(-hl * .85, -hw * .55); ctx.lineTo(-hl * .85, hw * .55); ctx.lineTo(-hl * .1, hw * .6); ctx.closePath(); ctx.fill();
   ctx.fillStyle = '#22364a'; ctx.fillRect(-hl * .15, -hw * .45, hl * .4, hw * .9); ctx.fillStyle = '#e8e8e8'; ctx.fillRect(-hl * .5, -hw * .4, hl * .35, hw * .8); ctx.fillStyle = '#2e7dd1'; ctx.fillRect(-hl * .9, -2, hl * .3, 4);
 }
@@ -1211,22 +1245,26 @@ function waterNear(x, y) {
 function fetchBoat(free) {
   if (!boat) return 'Du hast noch kein Boot'; if (!free && money < 150) return 'Zu wenig Geld';
   const P0 = P(), w = waterNear(P0.x, P0.y); if (!w) return 'Kein Wasser in der Nähe';
-  if (!free) money -= 150; let c = boat.car; if (!c || c.gone || c.wreck || !cars.includes(c)) { c = newCar(BOAT); c.drv = null; cars.push(c); boat.car = c; }
-  c.col = boat.col; c.max = BOAT.max * (1 + .12 * (boat.mot || 0)); c.acc = BOAT.acc * (1 + .1 * (boat.mot || 0)); c.x = w.x; c.y = w.y; c.a = rnd(0, TAU); c.vx = c.vy = 0; c.sunk = false; c.hp = c.hpm; c.wreck = false; c.air = 0; tone(500, .1, 'triangle', .12); tone(800, .14, 'triangle', .12, 0, .1);
+  if (!free) money -= 150; const BT0 = BOATS[boat.ty == null ? 3 : boat.ty]; let c = boat.car; if (!c || c.gone || c.wreck || !cars.includes(c)) { c = newCar(BT0); c.drv = null; cars.push(c); boat.car = c; }
+  c.col = boat.col; c.max = BT0.max * (1 + .12 * (boat.mot || 0)); c.acc = BT0.acc * (1 + .1 * (boat.mot || 0)); c.x = w.x; c.y = w.y; c.a = rnd(0, TAU); c.vx = c.vy = 0; c.sunk = false; c.hp = c.hpm; c.wreck = false; c.air = 0; tone(500, .1, 'triangle', .12); tone(800, .14, 'triangle', .12, 0, .1);
   return 'Dein Boot liegt bei dir im Wasser';
+}
+function boatShop() {
+  return { t: '⚓ BOOTSHOP', rows: () => BOATS.map((T, i) => ({ a: 'b' + i, t: `⚓ ${T.n} – Tempo ${T.max}, Länge ${T.l}${boat && (boat.ty == null ? 3 : boat.ty) === i ? ' (hast du)' : ''}`, pr: T.pr, off: !!boat && (boat.ty == null ? 3 : boat.ty) === i })),
+    act: a => { const i = +a.slice(1), T = BOATS[i]; if (!T || money < T.pr || (boat && (boat.ty == null ? 3 : boat.ty) === i)) return; money -= T.pr; if (boat && boat.car) boat.car.gone = true; boat = { col: T.c, mot: 0, car: null, ty: i }; save(); return fetchBoat(true) + ' – beim Verlassen des Ladens'; } };
 }
 function estateMenu() {
   return { t: '🏠 IMMOBILIEN & BOOTE', rows: () => [{ a: 'house', t: home ? '🏠 Eigenheim: gekauft (Haus in der Vorstadt)' : '🏠 Eigenheim kaufen – Bett, Speichern, Umkleide, Kühlschrank', pr: 25000, off: !!home },
       { a: 'villa', t: home && home.villa ? '🏝 Ferienvilla: gekauft (Ferieninsel)' : '🏝 Ferienvilla kaufen (Ferieninsel, gleiche Einrichtung – erst Eigenheim nötig)', pr: 80000, off: !home || !!(home && home.villa) },
-      { a: 'boat', t: boat ? '⚓ Motorboot: gekauft' : '⚓ Motorboot kaufen (kommt direkt zu dir)', pr: 9000, off: !!boat },
+      { a: 'boat', t: boat ? `⚓ Dein Boot: ${BOATS[boat.ty == null ? 3 : boat.ty].n} – anderes Boot kaufen …` : '⚓ Boot kaufen – 8 Sorten (Ruderboot bis Yacht, Hausboot)' },
       { a: 'bcol', t: boat ? `🎨 Boot umlackieren (jetzt: ${BOAT_C.indexOf(boat.col) + 1}/${BOAT_C.length})` : '🎨 Boot umlackieren (erst Boot kaufen)', pr: 300, off: !boat },
       { a: 'bmot', t: boat ? `⚙ Boot-Motor Stufe ${boat.mot || 0}/3 – mehr Tempo` : '⚙ Boot-Motor (erst Boot kaufen)', pr: 1500 * ((boat ? boat.mot || 0 : 0) + 1), off: !boat || (boat.mot || 0) >= 3 },
       { a: 'bget', t: '🚤 Mein Boot zu mir holen', pr: 150, off: !boat }],
     act: a => { if (a === 'house') { if (home || money < 25000) return; money -= 25000; home = { w: 0, f: 0 }; applyHomeCol(); save(); return 'Glückwunsch! Dein Haus steht in der Vorstadt (Eigenheim) – innen kannst du es einrichten'; }
       if (a === 'villa') { if (!home || home.villa || money < 80000) return; money -= 80000; home.villa = 1; save(); return 'Die Ferienvilla auf der Ferieninsel gehört dir!'; }
-      if (a === 'boat') { if (boat || money < 9000) return; money -= 9000; boat = { col: BOAT_C[0], mot: 0, car: null }; save(); return fetchBoat(true) + ' – beim Verlassen des Ladens'; }
+      if (a === 'boat') { openMenu(boatShop()); return; }
       if (a === 'bcol') { if (!boat || money < 300) return; money -= 300; boat.col = BOAT_C[(BOAT_C.indexOf(boat.col) + 1) % BOAT_C.length]; if (boat.car) boat.car.col = boat.col; save(); return 'Neu lackiert!'; }
-      if (a === 'bmot') { const pr = 1500 * ((boat.mot || 0) + 1); if (!boat || money < pr || (boat.mot || 0) >= 3) return; money -= pr; boat.mot = (boat.mot || 0) + 1; if (boat.car) { boat.car.max = BOAT.max * (1 + .12 * boat.mot); boat.car.acc = BOAT.acc * (1 + .1 * boat.mot); } save(); return 'Stärkerer Bootsmotor eingebaut!'; }
+      if (a === 'bmot') { const pr = 1500 * ((boat.mot || 0) + 1); if (!boat || money < pr || (boat.mot || 0) >= 3) return; money -= pr; boat.mot = (boat.mot || 0) + 1; if (boat.car) { const T0 = BOATS[boat.ty == null ? 3 : boat.ty]; boat.car.max = T0.max * (1 + .12 * boat.mot); boat.car.acc = T0.acc * (1 + .1 * boat.mot); } save(); return 'Stärkerer Bootsmotor eingebaut!'; }
       if (a === 'bget') return fetchBoat(false); } };
 }
 function homeMenu() {
@@ -1244,15 +1282,17 @@ function homeMenu() {
 const HWY_DEST = [{ z: 0, id: 0, name: 'Stadt Zentrum' }, { z: 0, id: 1, name: 'Hafen Süd' }, { z: 0, id: 2, name: 'Ferieninsel' }, { z: 1, id: 0, name: 'Bergland' }];
 function arriveAt(d, carry) {                      // Spieler (und sein Auto) am Zielort absetzen
   const car = carry === undefined ? p.car : carry;
-  if (car && !car.gone && !car.wreck) { const sp = roadNear(d.x, d.y); car.x = sp.x; car.y = sp.y; car.a = sp.a; car.vx = car.vy = 0; if (car === p.car) { p.x = car.x; p.y = car.y; } }
+  if (car && !car.gone && !car.wreck) { const wn = car.t.boat ? waterNear(d.x, d.y) : null, sp = wn ? { x: wn.x, y: wn.y, a: rnd(0, TAU) } : roadNear(d.x, d.y); car.x = sp.x; car.y = sp.y; car.a = sp.a; car.vx = car.vy = 0; if (car === p.car) { p.x = car.x; p.y = car.y; } }
   if (!p.car) { p.x = d.x + DX[d.dir] * 26; p.y = d.y + DY[d.dir] * 26; if (!footFree(p.x, p.y)) { p.x = d.x; p.y = d.y; } }
   shopLock = d; camX = p.x; camY = p.y;
 }
 function ferryMenu(sh) {                           // Tickets gibt es nur am Schalter im Fährgebäude
   const list = shops.filter(q => q.k === 'ferry' && q !== sh), lc = p.lastCar && !p.lastCar.gone && !p.lastCar.wreck && cars.includes(p.lastCar) && dist(p.lastCar.x, p.lastCar.y, sh.x, sh.y) < 260 ? p.lastCar : null, cost = d => 30 + Math.round(dist(sh.x, sh.y, d.x, d.y) / 60);
-  const rows = []; list.forEach((d, i) => { rows.push({ a: 'f' + i, t: `🎫 Ticket nach ${d.fn} (zu Fuß)`, pr: cost(d) }); if (lc) rows.push({ a: 'c' + i, t: `🎫 Ticket nach ${d.fn} mit ${lc.t.n}`, pr: cost(d) + 40 }); });
+  const zn = ZONE === 0 ? 'Bergsee (Bergland)' : 'Inselstadt (Hafen)', rows = []; list.forEach((d, i) => { rows.push({ a: 'f' + i, t: `🎫 Ticket nach ${d.fn} (zu Fuß)`, pr: cost(d) }); if (lc) rows.push({ a: 'c' + i, t: `🎫 Ticket nach ${d.fn} mit ${lc.t.n}`, pr: cost(d) + 40 }); });
+  rows.push({ a: 'z0', t: `🎫 Ticket ${zn} (zu Fuß)`, pr: 120 }); if (lc) rows.push({ a: 'z1', t: `🎫 Ticket ${zn} mit ${lc.t.n}`, pr: 190 });
   return { t: '⛴ FÄHRE – TICKETSCHALTER', rows: () => rows,
-    act: a => { const d = list[+a.slice(1)], withCar = a[0] === 'c', pr = d ? cost(d) + (withCar ? 40 : 0) : 0; if (!d || money < pr) return; money -= pr; closeMenu(); startRide('ferry', d.fn, 5.5, () => { inside = null; arriveAt(d, withCar ? lc : null); toast('Angekommen: ' + d.fn, '#3ab4e8', 2.5); }); } };
+    act: a => { if (a[0] === 'z') { const wc = a === 'z1', pr = wc ? 190 : 120; if (money < pr) return; money -= pr; closeMenu(); startRide('ferry', zn, 7, () => { inside = null; buildWorld(1 - ZONE, wc ? lc : null); const t = shops.find(q => q.k === 'ferry'); arriveAt(t, wc ? lc : null); toast('Angekommen: ' + zn, '#3ab4e8', 2.5); }); return; }
+      const d = list[+a.slice(1)], withCar = a[0] === 'c', pr = d ? cost(d) + (withCar ? 40 : 0) : 0; if (!d || money < pr) return; money -= pr; closeMenu(); startRide('ferry', d.fn, 5.5, () => { inside = null; arriveAt(d, withCar ? lc : null); toast('Angekommen: ' + d.fn, '#3ab4e8', 2.5); }); } };
 }
 function hwyMenu(sh) {
   const list = HWY_DEST.filter(d => !(d.z === ZONE && d.id === sh.hid)), ramp = d => shops.find(q => q.k === 'hwy' && q.hid === d.id), cost = d => d.z !== ZONE ? 150 : 35 + Math.round(dist(sh.x, sh.y, ramp(d).x, ramp(d).y) / 55);
@@ -1688,7 +1728,7 @@ function drawCar(c) {
   const air = c.air > 0 ? Math.sin(Math.PI * (1 - c.air / c.airT)) : 0; if (c.sunk) ctx.globalAlpha = .4;
   if (air > 0) { ctx.rotate(-c.a); ctx.translate(0, -air * 24); ctx.rotate(c.a); ctx.scale(1 + air * .3, 1 + air * .3); }
   if (sh === 'tram') { drawTram(L, Wd); ctx.restore(); return; }
-  if (sh === 'boat') { drawBoat(L, Wd, col, c.wreck); ctx.restore(); return; }
+  if (sh === 'boat') { drawBoat(L, Wd, col, c.wreck, t.bk); ctx.restore(); return; }
   if (sh === 'tank') {
     ctx.fillStyle = '#1c1f1a'; rr(-hl, -hw, L, Wd, 6); ctx.fill(); ctx.fillStyle = '#2b2f28'; for (const sy of [-1, 1]) { rr(-hl + 1, sy < 0 ? -hw : hw - 8, L - 2, 8, 4); ctx.fill(); } ctx.lineWidth = 1.5; ctx.strokeStyle = '#000'; rr(-hl, -hw, L, Wd, 6); ctx.stroke();
     const gr = ctx.createLinearGradient(0, -hw, 0, hw); gr.addColorStop(0, '#6a7e52'); gr.addColorStop(1, '#3a4a2c'); ctx.fillStyle = c.wreck ? '#262626' : gr; rr(-hl + 5, -hw + 6, L - 10, Wd - 12, 9); ctx.fill(); ctx.stroke();
@@ -1797,6 +1837,8 @@ function render() {
   for (const sp of spikes) if (vis(sp.x, sp.y, 30)) { ctx.save(); ctx.translate(sp.x, sp.y); ctx.rotate(sp.a); ctx.fillStyle = '#222'; ctx.fillRect(-3, -17, 6, 34); ctx.fillStyle = '#c9ccd2'; for (let k = -15; k <= 15; k += 6) ctx.fillRect(-4, k, 8, 2); ctx.restore(); }
   for (const c of cars) if (c.wreck && vis(c.x, c.y, 80)) drawCar(c);
   for (const c of cars) if (!c.wreck && vis(c.x, c.y, 80)) drawCar(c);
+  for (const tn of tunnels) if (vis(tn.x + tn.w / 2, tn.y + tn.h / 2, tn.w / 2 + 60)) { ctx.save(); ctx.globalAlpha = .88; const gr = ctx.createLinearGradient(0, tn.y, 0, tn.y + tn.h); gr.addColorStop(0, '#454a57'); gr.addColorStop(1, '#262a33'); ctx.fillStyle = gr; ctx.fillRect(tn.x + 16, tn.y, tn.w - 32, tn.h); ctx.globalAlpha = 1; ctx.fillStyle = '#ffe9a0'; for (let x = tn.x + 40; x < tn.x + tn.w - 30; x += 64) { ctx.fillRect(x, tn.y + 3, 7, 3); ctx.fillRect(x, tn.y + tn.h - 6, 7, 3); } ctx.restore(); }
+  if (p.car && tunnels.some(tn => p.car.x > tn.x && p.car.x < tn.x + tn.w && p.car.y > tn.y && p.car.y < tn.y + tn.h)) drawCar(p.car);
   for (const h of helpers) if (vis(h.x, h.y, 20)) drawPerson(h.x, h.y, h.a, h.col, h.ph, false, false, '#e9b98a', '#2a2a2a');
   for (const q of peds) if (!q.dead && vis(q.x, q.y, 20)) drawPerson(q.x, q.y, q.a, q.col, q.ph, false, q.gun || (q.cop && stars > 1), q.skin, q.hair, q.cop ? '#14286e' : null);
   if (bg && !bg.in) drawPerson(bg.x, bg.y, bg.a, '#2a3a6a', bg.ph, false, true, '#e9b98a', '#111');
@@ -1922,6 +1964,7 @@ function hud() {
 }
 
 // ---------- Läden in Gebäuden: Fassade, begehbarer Innenraum, Bahn ----------
+const tunnels = [];
 const RW0 = 504, RW = 640, RH = 420, RX = (RW - RW0) / 2, tramStops = [];
 const roomSol = R => R.solids.map(q => [q[0] + RX, q[1], q[2], q[3]]).concat([[16, 270, 34, RH - 350], [RW - 50, 270, 34, RH - 350]]);
 let inside = null, ride = null;
@@ -2510,7 +2553,7 @@ function renderMini() {
 function init() { load(); applyS(); resize(); buildWorld(0); p.x = ZS.x; p.y = ZS.y; camX = p.x; camY = p.y; zoom = Math.min(vw, vh) / 520; }
 function buildWorld(z, carry) {
   ZONE = z;
-  for (const a of [tgts, bld, cars, peds, parts, shots, cash, shops, ramps, swat, tanks, helpers, spikes, jets, bombs, tramStops, walk, curb, trees, lamps, rings]) a.length = 0;
+  for (const a of [tgts, bld, cars, peds, parts, shots, cash, shops, ramps, swat, tanks, helpers, spikes, jets, bombs, tramStops, walk, curb, trees, lamps, rings, tunnels]) a.length = 0;
   map.fill(0); bridge.fill(0); guard.fill(0); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, W);
   heli = null; taxi = null; mission = null; jobSt = null; tram = null; bank = null; shopLock = null; inside = null;
   owned.forEach(o => { if (!carry || o.car !== carry) o.car = null; });
@@ -2524,12 +2567,12 @@ function buildWorld(z, carry) {
     shops.push(Object.assign({ x: 62.5 * TS, y: 25.5 * TS }, SH[6]));                                                          // Bahnhof Waldinsel
     ZS = SPAWN; hosp = nearCurb(W / 2 + 150, W / 2 + 60); dump = nearCurb((PER + 5) * TS, (PER * 6 + 5) * TS);
   } else {
-    place([[2, 3, 3], [1, 4, 3], [3, 3, 4], [4, 4, 4], [8, 0, 4], [9, 3, 3, .12]]);                                                              // Dorf: Imbiss, Werkstatt, Garage, Kiosk + Autobahn-Auffahrt
+    place([[2, 3, 3], [1, 4, 3], [3, 3, 4], [4, 4, 4], [8, 0, 4], [9, 3, 3, .12], [7, 3, 5, .4], [7, 0, 4, .5]]);                                                              // Dorf: Imbiss, Werkstatt, Garage, Kiosk + Autobahn-Auffahrt
     hosp = nearCurb(W / 2 + 40, W / 2 + 40); dump = nearCurb(W / 2 - 100, W / 2 + 60); ZS = { x: hosp.x, y: hosp.y };
   }
   buildTargets(); npc = z === 0 ? curbIn(3, 4) : null; mini = null;
   for (const sh of shops) { let d = [0, 1, 2, 3].find(q => tileAt(sh.x + DX[q] * TS, sh.y + DY[q] * TS) === 0); if (d === undefined) d = 0; sh.dir = d; sh.bd = (d + 2) % 4; }
-  { const SN = ['Zentrum', 'Waldinsel', 'Hafen Süd', 'Ferieninsel'], FN = ['Hafen Zentrum', 'Waldküste', 'Hafen Süd', 'Strand Ost']; let hi = 0; for (const sh of shops) { const isl = island(sh.x, sh.y); if (sh.k === 'sta') sh.sn = SN[isl] || 'Bahnhof'; if (sh.k === 'ferry') sh.fn = FN[isl] || 'Pier'; if (sh.k === 'hwy') sh.hid = z === 1 ? 0 : [0, 1, 2][hi++]; } }
+  { const SN = ['Zentrum', 'Waldinsel', 'Hafen Süd', 'Ferieninsel'], FN = ['Hafen Zentrum', 'Waldküste', 'Hafen Süd', 'Strand Ost']; let hi = 0; for (const sh of shops) { const isl = island(sh.x, sh.y); if (sh.k === 'sta') sh.sn = SN[isl] || 'Bahnhof'; if (sh.k === 'ferry') sh.fn = z === 1 ? (sh.x < 1000 ? 'Seeufer West' : 'Seeufer Süd') : (FN[isl] || 'Pier'); if (sh.k === 'hwy') sh.hid = z === 1 ? 0 : [0, 1, 2][hi++]; } }
   if (z === 0) {
     const L = TR.c4 - TR.c1, inner = [[0, 1], [-1, 0], [0, -1], [1, 0]], nm = ['Nord', 'Ost', 'Süd', 'West']; for (let i = 0; i < 4; i++) { const [x, y, a] = trPos(i * L + L / 2); tramStops.push({ x, y, a, px: x + inner[i][0] * 58, py: y + inner[i][1] * 58, name: 'Haltestelle ' + nm[i] }); }
     tram = { s: 700, v: 0, stop: 0, w: [] };                          // Straßenbahn (3 Wagen)
@@ -2546,7 +2589,7 @@ function buildWorld(z, carry) {
     const c = newCar(pick(CT.filter(q => !q.rare))); c.x = x; c.y = y; c.a = (s[2] ? 0 : Math.PI / 2) + (Math.random() < .5 ? 0 : Math.PI); cars.push(c); n++;
   }
   bank = curb.reduce((b, q) => { const x = (q[0] + .5) * TS, y = (q[1] + .5) * TS, d = dist(x, y, W / 2, W / 2); return !b || d < b.d ? { x, y, d } : b; }, null);   // Bank im Zentrum
-  for (const sh of shops) if (sh.k === 'ferry') for (let i = 0; i < 2; i++) { const w = waterSpot(sh.x, sh.y); if (w) { const c = newCar(BOAT); c.col = pick(BOAT_C); c.x = w.x; c.y = w.y; c.a = rnd(0, TAU); c.drv = null; cars.push(c); } }   // Boote liegen am Hafen
+  for (const sh of shops) if (sh.k === 'ferry') for (let i = 0; i < 3; i++) { const w = waterSpot(sh.x, sh.y); if (w) { const c = newCar(pick(BOATS)); c.col = pick(BOAT_C); c.x = w.x; c.y = w.y; c.a = rnd(0, TAU); c.drv = null; cars.push(c); } }   // Boote liegen am Hafen
   for (let n = 0, tr = 0; n < (z ? 4 : 10) && tr < 400; tr++) {                                                        // Boote im Meer / See
     const bx = rint(0, NB - 1), by = rint(0, NB - 1); if (landB(bx, by)) continue; const x = (PER * bx + rnd(3, 8)) * TS, y = (PER * by + rnd(3, 8)) * TS;
     if (!isWater(x, y) || !isWater(x + 70, y) || !isWater(x - 70, y) || !isWater(x, y + 70) || !isWater(x, y - 70)) continue;
@@ -2567,7 +2610,7 @@ function loop(ts) {
   render(); if (photoReq && --photoReq === 0) takePhoto();
 }
 init(); requestAnimationFrame(loop);
-if (location.hash === '#debug') window.__rc = { shopBreak, robBtn, pedNear, updInside, updBur, burGen, enterBur, get inside() { return inside; }, get shops() { return shops; }, dmgCar, cash, sigs, lightState, get mission() { return mission; }, get fog() { return fog; }, set fog(v) { fog = v; }, get snow() { return snow; }, set snow(v) { snow = v; }, shots, useBtn, blockType, curb, openMenu, p, cars, peds, shops, inp, S, ramps, mc, tileAt, startGame, update, render, island, landB, cam: () => [camX, camY, zoom], setCam: (x, y) => { camX = x; camY = y; }, get started() { return started; }, get money() { return money; }, set money(v) { money = v; }, get mission() { return mission; }, startMission, get npc() { return npc; }, get heistBonus() { return heistBonus; }, startLock, startHeist, get mini() { return mini; }, tgts, get pickLv() { return pickLv; }, set pickLv(v) { pickLv = v; }, get heistReady() { return heistReady; }, set heistReady(v) { heistReady = v; }, npcBtn, burgleBtn, buildWorld, fetchCar, get zone() { return ZONE; }, get lastOwn() { return lastOwn; }, set lastOwn(v) { lastOwn = v; }, owned, startRide, arriveAt, startAccident, helpers, tanks, jets, bombs, get chaos() { return chaos; }, set chaos(v) { chaos = v; }, wp, ST, enterShop, exitShop, startRide, get inside() { return inside; }, get ride() { return ride; }, get dead() { return dead; }, tramStops, tram: () => tram, openMenuX: () => menu, wasted, busted, respawn, reviveNow, inv, useItem, startJob, endJob, renderHot, hosp: () => hosp, dump: () => dump, get jobSt() { return jobSt; }, get stars() { return stars; }, get heat() { return heat; }, get armor() { return p.armor; }, addHeat, toggleBig: () => { bigMap = !bigMap; $('mapHit').classList.toggle('big', bigMap); }, W, N, TS, PER, NB };
+if (location.hash === '#debug') window.__rc = { get tunnels() { return tunnels; }, BOATS, shopBreak, robBtn, pedNear, updInside, updBur, burGen, enterBur, get inside() { return inside; }, get shops() { return shops; }, dmgCar, cash, sigs, lightState, get mission() { return mission; }, get fog() { return fog; }, set fog(v) { fog = v; }, get snow() { return snow; }, set snow(v) { snow = v; }, shots, useBtn, blockType, curb, openMenu, p, cars, peds, shops, inp, S, ramps, mc, tileAt, startGame, update, render, island, landB, cam: () => [camX, camY, zoom], setCam: (x, y) => { camX = x; camY = y; }, get started() { return started; }, get money() { return money; }, set money(v) { money = v; }, get mission() { return mission; }, startMission, get npc() { return npc; }, get heistBonus() { return heistBonus; }, startLock, startHeist, get mini() { return mini; }, tgts, get pickLv() { return pickLv; }, set pickLv(v) { pickLv = v; }, get heistReady() { return heistReady; }, set heistReady(v) { heistReady = v; }, npcBtn, burgleBtn, buildWorld, fetchCar, get zone() { return ZONE; }, get lastOwn() { return lastOwn; }, set lastOwn(v) { lastOwn = v; }, owned, startRide, arriveAt, startAccident, helpers, tanks, jets, bombs, get chaos() { return chaos; }, set chaos(v) { chaos = v; }, wp, ST, enterShop, exitShop, startRide, get inside() { return inside; }, get ride() { return ride; }, get dead() { return dead; }, tramStops, tram: () => tram, openMenuX: () => menu, wasted, busted, respawn, reviveNow, inv, useItem, startJob, endJob, renderHot, hosp: () => hosp, dump: () => dump, get jobSt() { return jobSt; }, get stars() { return stars; }, get heat() { return heat; }, get armor() { return p.armor; }, addHeat, toggleBig: () => { bigMap = !bigMap; $('mapHit').classList.toggle('big', bigMap); }, W, N, TS, PER, NB };
 })();
 </script>
 </body>
