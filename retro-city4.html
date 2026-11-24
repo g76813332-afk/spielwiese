@@ -1042,7 +1042,15 @@ function robBtn() {
   if (copNear(500)) { addHeat(14); toast(`Ausgeraubt +$${v} – ein Polizist hat's gesehen!`, '#ff8', 2.2); } else toast(`Ausgeraubt  +$${v}`, '#7dff7d', 1.6);
   tone(500, .05, 'square', .1); tone(800, .07, 'square', .1, 0, .05); return true;
 }
+function houseboatMenu() {
+  return { t: '⛵ HAUSBOOT', rows: () => [{ a: 'sleep', t: '🛏 Schlafen bis zum Morgen (heilt, speichert)' }, { a: 'fridge', t: '🧊 Kühlschrank (+40 Gesundheit, gratis)' + (healCd > 0 ? ` · Pause ${Math.ceil(healCd)} s` : ''), off: p.hp >= 100 || healCd > 0 }, { a: 'save', t: '💾 Spielstand speichern' }, { a: 'out', t: `👕 Umkleide – Outfit: ${OUTFIT_N[outfit]}` }, { a: 'exit', t: '🚪 Aussteigen' }],
+    act: a => { if (a === 'sleep') { closeMenu(); fadeTo(() => { time = (Math.floor(time / 420) + 1) * 420 + 15; p.hp = 100; heat = 0; stars = 0; save(); toast('Gut geschlafen auf dem Hausboot – es ist Morgen', '#fff', 2.5); }); return; }
+      if (a === 'fridge') { p.hp = Math.min(100, p.hp + 40); healCd = 9; return 'Frisch aus dem Kühlschrank!'; } if (a === 'save') { save(); return 'Gespeichert!'; }
+      if (a === 'out') { outfit = (outfit + 1) % OUTFIT.length; save(); return 'Neues Outfit: ' + OUTFIT_N[outfit]; }
+      if (a === 'exit') { closeMenu(); exitCar(); } } };
+}
 function useBtn() {
+  if (p.car && p.car.t.bk === 'house' && p.car.spd < 60 && stars === 0) { openMenu(houseboatMenu()); return; }
   if (p.car) { exitCar(); return; }
   if (boardTram()) return; if (burgleBtn() || npcBtn() || (!nearCar() && robBtn())) return;
   const b = nearCar(); if (!b) return;
